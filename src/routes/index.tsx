@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { useDarkMode } from "@/lib/use-dark-mode";
 import { HowItWorks } from "./-landing/how-it-works";
@@ -13,11 +13,13 @@ export const Route = createFileRoute("/")({
 
 function HomeComponent() {
   const { isDark, toggle } = useDarkMode();
+  const navigate = useNavigate();
 
-  // TODO: wire to /analyze/$jobId once the API exists. For now, log so we have a clear signal
-  // that the form works end-to-end in the UI.
+  // TODO step 11: POST /api/analyze and use the returned job id. For now, "mock"
+  // routes to the same screen that replays the mock generation log.
   const handleSubmit = (url: string) => {
     console.info("[cubic] submit repo:", url);
+    navigate({ to: "/analyze/$jobId", params: { jobId: "mock" } });
   };
 
   return (
