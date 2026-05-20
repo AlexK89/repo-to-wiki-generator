@@ -30,5 +30,5 @@ skills-lock.json
 .tanstack/
 .vercel/
 
-# Generated api bundles (built from api/**/*.ts)
-api/**/*.mjs
+# Generated api bundles (built from api-src/**/*.ts)
+/api/

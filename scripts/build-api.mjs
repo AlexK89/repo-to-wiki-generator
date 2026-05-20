@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 import { readdir, stat } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
 
 const rootDir = resolve(fileURLToPath(import.meta.url), "../..");
-const apiDir = join(rootDir, "api");
+const sourceDir = join(rootDir, "api-src");
+const outputDir = join(rootDir, "api");
 
 const collectTsEntries = async (directory) => {
   const entries = [];
@@ -30,9 +31,9 @@ const dependencies = await import(join(rootDir, "package.json"), {
 
 const formatBytes = (bytes) => `${(bytes / 1024).toFixed(1)} kB`;
 
-const entries = await collectTsEntries(apiDir);
+const entries = await collectTsEntries(sourceDir);
 if (entries.length === 0) {
-  console.log("[build-api] No api/**/*.ts entries found, skipping.");
+  console.log("[build-api] No api-src/**/*.ts entries found, skipping.");
   process.exit(0);
 }
 
@@ -40,7 +41,11 @@ console.log(`[build-api] Bundling ${entries.length} api function(s)`);
 
 for (const entryPath of entries) {
   const relativeEntry = relative(rootDir, entryPath);
-  const outputPath = entryPath.replace(/\.ts$/, ".mjs");
+  const relativeFromSource = relative(sourceDir, entryPath);
+  const outputPath = join(outputDir, relativeFromSource).replace(
+    /\.ts$/,
+    ".mjs",
+  );
 
   await build({
     entryPoints: [entryPath],

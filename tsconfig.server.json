@@ -23,5 +23,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["api/**/*.ts", "src/lib/server/**/*.ts", "src/prompts/**/*.tsx"]
+  "include": ["api-src/**/*.ts", "src/lib/server/**/*.ts", "src/prompts/**/*.tsx"]
 }
