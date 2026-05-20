@@ -74,3 +74,12 @@ export type Wiki = {
   modelVersion: "gpt-5-mini";
   stats: WikiStats;
 };
+
+export type LogLineType = "step" | "info" | "ai" | "feature" | "page" | "done";
+
+export type LogLine = {
+  type: LogLineType;
+  text: string;
+  detail?: string;
+  category?: Category;
+};
