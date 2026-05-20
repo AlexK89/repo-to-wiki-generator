@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 
 import { CategoryBadge } from "@/components/category-badge";
+import { resolveWikiCategory } from "@/lib/categories";
 import type { Feature, Wiki } from "@/types/wiki";
 import { EntryPoint } from "./entry-point";
 import { FeatureFlow } from "./feature-flow";
@@ -107,6 +108,8 @@ type BreadcrumbProps = {
 };
 
 function Breadcrumb({ feature, wiki, wikiId }: BreadcrumbProps) {
+  const category = resolveWikiCategory(wiki, feature.category);
+
   return (
     <div className="mb-4 flex items-center gap-2 text-[12.5px] text-fg-subtle">
       <Link
@@ -117,7 +120,7 @@ function Breadcrumb({ feature, wiki, wikiId }: BreadcrumbProps) {
         {wiki.repo.owner}/{wiki.repo.name}
       </Link>
       <ChevronRight size={12} />
-      <CategoryBadge category={feature.category} size="sm" />
+      <CategoryBadge category={category} size="sm" />
     </div>
   );
 }

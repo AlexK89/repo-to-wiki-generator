@@ -1,10 +1,17 @@
-export type Category =
+export type CategorySlot =
   | "core"
   | "workflow"
   | "integration"
   | "ops"
   | "ui"
   | "ext";
+
+export type WikiCategory = {
+  id: string;
+  label: string;
+  description?: string;
+  slot: CategorySlot;
+};
 
 export type EntryPointKind =
   | "function"
@@ -61,7 +68,7 @@ export type Feature = {
   slug: string;
   title: string;
   oneLiner: string;
-  category: Category;
+  category: string;
   page: FeaturePage;
 };
 
@@ -89,6 +96,7 @@ export type Wiki = {
   summary: string;
   audience: string;
   stack: string[];
+  categories: WikiCategory[];
   features: Feature[];
   generatedAt: string;
   modelVersion: "gpt-5-mini";
@@ -101,5 +109,5 @@ export type LogLine = {
   type: LogLineType;
   text: string;
   detail?: string;
-  category?: Category;
+  category?: CategorySlot;
 };

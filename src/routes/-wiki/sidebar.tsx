@@ -1,6 +1,6 @@
 import { BookOpen, RefreshCw, Search, Sparkles } from "lucide-react";
 
-import { CATEGORIES, CATEGORY_ORDER } from "@/lib/categories";
+import { getWikiCategoryGroups } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import { SidebarItem } from "./sidebar-item";
 import { useWiki } from "./wiki-context";
@@ -11,11 +11,7 @@ type Props = {
 
 export function Sidebar({ activeSlug }: Props) {
   const { wiki, setSearchOpen } = useWiki();
-  const groups = CATEGORY_ORDER.map((category) => ({
-    category,
-    meta: CATEGORIES[category],
-    features: wiki.features.filter((feature) => feature.category === category),
-  })).filter((group) => group.features.length > 0);
+  const groups = getWikiCategoryGroups(wiki);
 
   return (
     <aside className="sticky top-14 flex h-[calc(100vh-3.5rem)] w-67 shrink-0 flex-col overflow-hidden border-r border-border bg-bg-subtle">
@@ -46,12 +42,15 @@ export function Sidebar({ activeSlug }: Props) {
         />
 
         {groups.map((group) => {
-          const Icon = group.meta.icon;
+          const Icon = group.style.icon;
           return (
-            <div key={group.category} className={cn(group.meta.colorClass, "mt-3.5")}>
+            <div
+              key={group.category.id}
+              className={cn(group.style.colorClass, "mt-3.5")}
+            >
               <div className="flex items-center gap-1.5 px-2.5 pb-1 pt-1 text-[10.5px] font-semibold uppercase tracking-wider text-cat">
                 <Icon size={10} />
-                {group.meta.label}
+                {group.category.label}
               </div>
               {group.features.map((feature) => (
                 <SidebarItem

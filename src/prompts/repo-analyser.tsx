@@ -40,6 +40,9 @@ export const repoAnalyserPrompt = `
   - If something is unclear, mark it as "unknown" or "inferred", and explain why.
   - Use exact file paths and line ranges for evidence.
   - Avoid generic descriptions.
+  - Return between 3 and 10 subsystems unless the repository is genuinely tiny.
+  - Create concise category labels based on this repository, not a fixed taxonomy.
+  - Use 2 to 7 category labels total. Examples: "Terminal rendering", "Shell workflows", "Browser automation", "State management".
   - Be concise but specific.
 
   Return only valid JSON. Do not include Markdown.
@@ -54,12 +57,14 @@ export const repoAnalyserPrompt = `
       "frameworks": string[],
       "projectType": "web-app" | "cli" | "library" | "api" | "desktop-app" | "mobile-app" | "unknown",
       "inferredPurpose": string,
+      "audience": string,
       "confidence": "high" | "medium" | "low"
     },
     "subsystems": [
       {
         "id": string,
         "title": string,
+        "category": string,
         "summary": string,
         "userValue": string,
         "whyThisIsUserFacing": string,
@@ -67,7 +72,7 @@ export const repoAnalyserPrompt = `
         "entryPoints": [
           {
             "name": string,
-            "kind": "route" | "cli-command" | "function" | "component" | "api-endpoint" | "config" | "other",
+            "kind": "route" | "command" | "function" | "component" | "config",
             "path": string,
             "lineStart": number | null,
             "lineEnd": number | null,

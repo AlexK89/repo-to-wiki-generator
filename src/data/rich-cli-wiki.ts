@@ -19,6 +19,33 @@ export const richCliWiki: Wiki = {
   audience:
     "Developers and power users on the terminal who want pretty, readable output without writing a script for every format.",
   stack: ["Python 3.7+", "Rich", "Click", "Requests"],
+  categories: [
+    {
+      id: "terminal-rendering",
+      label: "Terminal rendering",
+      slot: "core",
+    },
+    {
+      id: "structured-output",
+      label: "Structured output",
+      slot: "workflow",
+    },
+    {
+      id: "remote-content",
+      label: "Remote content",
+      slot: "integration",
+    },
+    {
+      id: "presentation-controls",
+      label: "Presentation controls",
+      slot: "ui",
+    },
+    {
+      id: "shell-operations",
+      label: "Shell operations",
+      slot: "ops",
+    },
+  ],
   generatedAt: "2026-05-20T14:32:00Z",
   modelVersion: "gpt-5-mini",
   stats: {
@@ -33,7 +60,7 @@ export const richCliWiki: Wiki = {
       slug: "rendering-files",
       title: "Rendering files",
       oneLiner: "Point rich at any file and it picks the right renderer.",
-      category: "core",
+      category: "terminal-rendering",
       page: {
         overview: `The headline feature: %CITE:1%running \`rich path/to/file\`%/CITE% in a terminal renders the contents of that file beautifully — auto-detecting whether it's source code, markdown, JSON, CSV, or plain text. There's no need to choose a format flag for common cases.
 
@@ -85,7 +112,7 @@ The rendered output is then handed to the same printing pipeline that powers eve
       slug: "markdown-rendering",
       title: "Markdown rendering",
       oneLiner: "Beautiful in-terminal markdown — headings, lists, code blocks, tables.",
-      category: "core",
+      category: "terminal-rendering",
       page: {
         overview: `Pass a \`.md\` file (or stdin with \`--markdown\`) and rich-cli %CITE:1%renders it with full markdown styling%/CITE%: ATX headings get rules, fenced code blocks are syntax-highlighted, lists nest, and GFM tables align.
 
@@ -112,7 +139,7 @@ Two things deserve note. First, %CITE:4%hyperlinks are emitted using terminal OS
       slug: "code-syntax-highlighting",
       title: "Code & syntax highlighting",
       oneLiner: "Themed, line-numbered code rendering with Pygments lexers.",
-      category: "core",
+      category: "terminal-rendering",
       page: {
         overview: `Any file rich-cli doesn't recognize as a structured format falls through to the syntax renderer, which uses %CITE:1%Rich's \`Syntax\` class%/CITE% to syntax-highlight code with Pygments. Line numbers, guides, and themes are all configurable.
 
@@ -139,7 +166,7 @@ Themes are sourced from %CITE:4%Pygments' built-in style registry%/CITE%; \`--th
       slug: "tables-structured-data",
       title: "Tables & structured data",
       oneLiner: "CSV and JSON render as aligned, themed tables — not raw text.",
-      category: "workflow",
+      category: "structured-output",
       page: {
         overview: `CSV files are rendered as %CITE:1%proper Rich tables%/CITE%, with the first row used as headers, types inferred per column, and numeric columns right-aligned. JSON files are pretty-printed with %CITE:2%syntactic colouring and key alignment%/CITE%.
 
@@ -167,7 +194,7 @@ The JSON renderer is shorter — %CITE:4%it parses and hands off to \`rich.json.
       slug: "export",
       title: "Export to HTML & SVG",
       oneLiner: "Save the rendered output as an HTML page or a vector SVG.",
-      category: "workflow",
+      category: "structured-output",
       page: {
         overview: `Every renderer's output can be %CITE:1%captured and written to disk%/CITE% as an HTML document or an SVG, preserving colors, fonts, and layout. The flags are \`--export-html\` and \`--export-svg\`.
 
@@ -193,7 +220,7 @@ Fonts default to a generic monospace stack; \`--export-svg\` accepts a \`--font-
       slug: "urls-and-web-content",
       title: "URLs & web content",
       oneLiner: "Point rich at a URL and it fetches, then renders.",
-      category: "integration",
+      category: "remote-content",
       page: {
         overview: `rich-cli treats URLs as first-class resources. %CITE:1%Passing an \`http://\` or \`https://\` URL%/CITE% causes the CLI to fetch the resource, %CITE:2%use the response's \`Content-Type\` header%/CITE% to pick a renderer, and then render as normal.
 
@@ -219,7 +246,7 @@ Authentication isn't supported in v1; rich-cli is intended for public content.`,
       slug: "themes-and-styling",
       title: "Themes & styling",
       oneLiner: "Pygments themes, indent guides, panel borders, force-width.",
-      category: "ui",
+      category: "presentation-controls",
       page: {
         overview: `Every renderer respects a shared set of styling options: %CITE:1%theme name%/CITE%, %CITE:2%indent guides%/CITE%, line numbers, and a %CITE:3%force-width override%/CITE% for capturing output to fixed-width media (CI logs, screenshots).
 
@@ -246,7 +273,7 @@ Themes are sourced from Pygments and apply to every code-rendering surface — i
       slug: "pager-and-piping",
       title: "Paging, piping & printing",
       oneLiner: "Plays nicely with stdin, pagers, and being part of a unix pipeline.",
-      category: "ops",
+      category: "shell-operations",
       page: {
         overview: `rich-cli is unix-shell-shaped. It reads from %CITE:1%stdin via \`-\`%/CITE%, writes plain ANSI to stdout when not a TTY, and %CITE:2%pages long output through \`less\`%/CITE% when \`--pager\` is set.
 

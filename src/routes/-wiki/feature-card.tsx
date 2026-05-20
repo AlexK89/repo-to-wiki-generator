@@ -2,9 +2,10 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 
 import { CategoryBadge } from "@/components/category-badge";
-import { CATEGORIES } from "@/lib/categories";
+import { getCategoryStyle, resolveWikiCategory } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import type { Feature } from "@/types/wiki";
+import { useWiki } from "./wiki-context";
 
 type Props = {
   feature: Feature;
@@ -12,18 +13,21 @@ type Props = {
 };
 
 export function FeatureCard({ feature, wikiId }: Props) {
-  const meta = CATEGORIES[feature.category];
+  const { wiki } = useWiki();
+  const category = resolveWikiCategory(wiki, feature.category);
+  const style = getCategoryStyle(category.slot);
+
   return (
     <Link
       to="/wiki/$wikiId/$slug"
       params={{ wikiId, slug: feature.slug }}
       className={cn(
-        meta.colorClass,
+        style.colorClass,
         "group relative block rounded-lg border border-border bg-bg-elev p-4.5 transition-all hover:-translate-y-px hover:border-cat hover:shadow-md",
       )}
     >
       <div className="mb-2.5 flex items-center gap-2">
-        <CategoryBadge category={feature.category} size="sm" />
+        <CategoryBadge category={category} size="sm" />
         <span className="ml-auto font-mono text-[11px] text-fg-subtle">
           {feature.page.citations.length} citations
         </span>

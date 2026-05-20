@@ -2,7 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Command } from "cmdk";
 import { ArrowRight, Search } from "lucide-react";
 
-import { CATEGORIES } from "@/lib/categories";
+import { getCategoryStyle, resolveWikiCategory } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import { useWiki } from "./wiki-context";
 
@@ -73,15 +73,16 @@ export function SearchCommand() {
 
         <Command.Group heading="Features" className={groupHeadingClass}>
           {wiki.features.map((feature) => {
-            const meta = CATEGORIES[feature.category];
-            const Icon = meta.icon;
+            const category = resolveWikiCategory(wiki, feature.category);
+            const style = getCategoryStyle(category.slot);
+            const Icon = style.icon;
             return (
               <Command.Item
                 key={feature.slug}
-                value={`${feature.title} ${feature.oneLiner} ${meta.label}`}
+                value={`${feature.title} ${feature.oneLiner} ${category.label}`}
                 onSelect={() => goToFeature(feature.slug)}
                 className={cn(
-                  meta.colorClass,
+                  style.colorClass,
                   "group flex cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 text-sm text-fg-muted aria-selected:bg-bg-subtle aria-selected:text-fg",
                 )}
               >
@@ -97,7 +98,7 @@ export function SearchCommand() {
                   </div>
                 </div>
                 <span className="shrink-0 text-[10.5px] font-medium uppercase tracking-wider text-cat">
-                  {meta.label}
+                  {category.label}
                 </span>
               </Command.Item>
             );
