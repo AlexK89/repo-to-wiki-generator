@@ -28,10 +28,6 @@ const collectTsEntries = async (directory) => {
   return entries;
 };
 
-const dependencies = await import(join(rootDir, "package.json"), {
-  with: { type: "json" },
-}).then((module) => Object.keys(module.default.dependencies ?? {}));
-
 const FUNCTION_DURATIONS = {
   "analyze.ts": 300,
   "jobs/[id].ts": 300,
@@ -59,7 +55,6 @@ for (const entryPath of entries) {
     platform: "node",
     format: "esm",
     target: "node20",
-    external: dependencies,
     logLevel: "warning",
     legalComments: "none",
     tsconfig: join(rootDir, "tsconfig.server.json"),
