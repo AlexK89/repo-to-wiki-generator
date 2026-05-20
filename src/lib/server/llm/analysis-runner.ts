@@ -1,16 +1,9 @@
-import type { Analysis } from "@/types/analysis";
-import type { RepositoryDigest } from "../github/digest";
-import { generateStructuredJson } from "./openai";
-import { analysisSchema } from "./zod-schemas";
-
 export type AnalysisGenericGuardResult = {
   offendingSubsystems: string[];
   hasGenericSubsystems: boolean;
 };
 
-export type RunRepositoryAnalysisInput = {
-  digest: RepositoryDigest;
-};
+type GuardableSubsystem = { id: string; title: string };
 
 const GENERIC_SUBSYSTEM_PATTERNS = [
   /\bfrontend\b/i,
@@ -40,10 +33,10 @@ export const buildGenericRepairPrompt = (
     prompt,
   ].join("\n");
 
-export const detectGenericSubsystems = (
-  analysis: Analysis,
-): AnalysisGenericGuardResult => {
-  const offendingSubsystems = analysis.subsystems
+export const detectGenericSubsystems = (input: {
+  subsystems: GuardableSubsystem[];
+}): AnalysisGenericGuardResult => {
+  const offendingSubsystems = input.subsystems
     .filter(
       (subsystem) =>
         isGenericSubsystemName(subsystem.title) ||
@@ -55,31 +48,4 @@ export const detectGenericSubsystems = (
     offendingSubsystems,
     hasGenericSubsystems: offendingSubsystems.length > 0,
   };
-};
-
-const requestAnalysis = async (prompt: string) => {
-  const result = await generateStructuredJson({
-    schema: analysisSchema,
-    schemaName: "repository_analysis",
-    prompt,
-    instructions:
-      "Return only the repository analysis JSON. Prefer feature and workflow names over technical layer names.",
-    maxOutputTokens: 5_000,
-    timeoutMs: 90_000,
-  });
-
-  return result.output as Analysis;
-};
-
-export const runRepositoryAnalysis = async ({
-  digest,
-}: RunRepositoryAnalysisInput) => {
-  const analysis = await requestAnalysis(digest.prompt);
-  const guardResult = detectGenericSubsystems(analysis);
-
-  if (!guardResult.hasGenericSubsystems) {
-    return analysis;
-  }
-
-  return requestAnalysis(buildGenericRepairPrompt(digest.prompt, guardResult));
 };

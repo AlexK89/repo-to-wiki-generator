@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-const confidenceSchema = z.enum(["high", "medium", "low"]);
 const lineNumberSchema = z.number().int().positive();
-
 const nullableLineNumberSchema = lineNumberSchema.nullable();
 
 const evidenceSchema = z.object({
@@ -64,73 +62,64 @@ const analysisPublicInterfaceSchema = z.object({
   evidence: z.array(evidenceSchema),
 });
 
-const analysisSuggestedWikiPageSchema = z.object({
-  slug: z.string().min(1),
-  title: z.string().min(1),
-  purpose: z.string().min(1),
+const repoSchema = z.object({
+  name: z.string().min(1),
+  description: z.string(),
+  primaryLanguage: z.string().nullable(),
+  frameworks: z.array(z.string()),
+  projectType: z.enum([
+    "web-app",
+    "cli",
+    "library",
+    "api",
+    "desktop-app",
+    "mobile-app",
+    "unknown",
+  ]),
+  inferredPurpose: z.string().min(1),
+  audience: z.string().nullable().optional(),
 });
 
-const analysisSubsystemSchema = z.object({
+const discoverySubsystemSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
   category: z.string().min(1).nullable().optional(),
   summary: z.string().min(1),
   userValue: z.string().min(1),
   whyThisIsUserFacing: z.string().min(1),
-  confidence: confidenceSchema,
   entryPoints: z.array(analysisEntryPointSchema),
   coreFiles: z.array(analysisCoreFileSchema),
-  behaviours: z.array(analysisBehaviourSchema),
-  dataFlow: z.array(analysisDataFlowStepSchema),
-  publicInterfaces: z.array(analysisPublicInterfaceSchema),
-  technicalNotes: z.array(z.string()),
-  edgeCasesOrLimitations: z.array(z.string()),
-  suggestedWikiPages: z.array(analysisSuggestedWikiPageSchema),
 });
 
-const analysisCrossCuttingConcernSchema = z.object({
+const discoveryCrossCuttingConcernSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
   relatedSubsystemIds: z.array(z.string().min(1)),
-  evidence: z.array(evidenceSchema),
 });
 
-const analysisNavigationItemSchema = z.object({
-  title: z.string().min(1),
+export const analysisDiscoverySchema = z.object({
+  repo: repoSchema,
+  subsystems: z.array(discoverySubsystemSchema).min(1).max(6),
+  crossCuttingConcerns: z.array(discoveryCrossCuttingConcernSchema),
+});
+
+export const subsystemDeepDiveSchema = z.object({
   subsystemId: z.string().min(1),
-  slug: z.string().min(1),
-  order: z.number().int().nonnegative(),
+  behaviours: z.array(analysisBehaviourSchema),
+  dataFlow: z.array(analysisDataFlowStepSchema),
+  publicInterfaces: z.array(analysisPublicInterfaceSchema),
 });
 
-const analysisMissingOrUnclearSchema = z.object({
-  topic: z.string().min(1),
-  reason: z.string().min(1),
-  recommendedFollowUp: z.string().min(1),
+const mergedSubsystemSchema = discoverySubsystemSchema.extend({
+  behaviours: z.array(analysisBehaviourSchema),
+  dataFlow: z.array(analysisDataFlowStepSchema),
+  publicInterfaces: z.array(analysisPublicInterfaceSchema),
 });
 
 export const analysisSchema = z.object({
-  repo: z.object({
-    name: z.string().min(1),
-    description: z.string(),
-    primaryLanguage: z.string().nullable(),
-    frameworks: z.array(z.string()),
-    projectType: z.enum([
-      "web-app",
-      "cli",
-      "library",
-      "api",
-      "desktop-app",
-      "mobile-app",
-      "unknown",
-    ]),
-    inferredPurpose: z.string().min(1),
-    audience: z.string().nullable().optional(),
-    confidence: confidenceSchema,
-  }),
-  subsystems: z.array(analysisSubsystemSchema).min(1).max(10),
-  crossCuttingConcerns: z.array(analysisCrossCuttingConcernSchema),
-  navigation: z.array(analysisNavigationItemSchema),
-  missingOrUnclear: z.array(analysisMissingOrUnclearSchema),
+  repo: repoSchema,
+  subsystems: z.array(mergedSubsystemSchema).min(1).max(6),
+  crossCuttingConcerns: z.array(discoveryCrossCuttingConcernSchema),
 });
 
 const citationSchema = z.object({
@@ -168,4 +157,6 @@ export const featurePageOutputSchema = z.object({
 });
 
 export type AnalysisSchema = z.infer<typeof analysisSchema>;
+export type AnalysisDiscoverySchema = z.infer<typeof analysisDiscoverySchema>;
+export type SubsystemDeepDiveSchema = z.infer<typeof subsystemDeepDiveSchema>;
 export type FeaturePageOutputSchema = z.infer<typeof featurePageOutputSchema>;

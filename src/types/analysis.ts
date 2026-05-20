@@ -1,7 +1,5 @@
 import type { Citation, FeatureDiagram } from "./wiki";
 
-export type Confidence = "high" | "medium" | "low";
-
 export type AnalysisProjectType =
   | "web-app"
   | "cli"
@@ -45,7 +43,6 @@ export type AnalysisRepo = {
   projectType: AnalysisProjectType;
   inferredPurpose: string;
   audience?: string | null;
-  confidence: Confidence;
 };
 
 export type AnalysisEntryPoint = {
@@ -83,56 +80,48 @@ export type AnalysisPublicInterface = {
   evidence: AnalysisEvidence[];
 };
 
-export type AnalysisSuggestedWikiPage = {
-  slug: string;
-  title: string;
-  purpose: string;
-};
-
-export type AnalysisSubsystem = {
+export type AnalysisDiscoverySubsystem = {
   id: string;
   title: string;
   category?: string | null;
   summary: string;
   userValue: string;
   whyThisIsUserFacing: string;
-  confidence: Confidence;
   entryPoints: AnalysisEntryPoint[];
   coreFiles: AnalysisCoreFile[];
-  behaviours: AnalysisBehaviour[];
-  dataFlow: AnalysisDataFlowStep[];
-  publicInterfaces: AnalysisPublicInterface[];
-  technicalNotes: string[];
-  edgeCasesOrLimitations: string[];
-  suggestedWikiPages: AnalysisSuggestedWikiPage[];
 };
 
-export type AnalysisCrossCuttingConcern = {
+export type AnalysisDiscoveryCrossCuttingConcern = {
   title: string;
   description: string;
   relatedSubsystemIds: string[];
-  evidence: AnalysisEvidence[];
 };
 
-export type AnalysisNavigationItem = {
-  title: string;
+export type AnalysisDiscovery = {
+  repo: AnalysisRepo;
+  subsystems: AnalysisDiscoverySubsystem[];
+  crossCuttingConcerns: AnalysisDiscoveryCrossCuttingConcern[];
+};
+
+export type SubsystemDeepDive = {
   subsystemId: string;
-  slug: string;
-  order: number;
+  behaviours: AnalysisBehaviour[];
+  dataFlow: AnalysisDataFlowStep[];
+  publicInterfaces: AnalysisPublicInterface[];
 };
 
-export type AnalysisMissingOrUnclear = {
-  topic: string;
-  reason: string;
-  recommendedFollowUp: string;
+export type AnalysisSubsystem = AnalysisDiscoverySubsystem & {
+  behaviours: AnalysisBehaviour[];
+  dataFlow: AnalysisDataFlowStep[];
+  publicInterfaces: AnalysisPublicInterface[];
 };
+
+export type AnalysisCrossCuttingConcern = AnalysisDiscoveryCrossCuttingConcern;
 
 export type Analysis = {
   repo: AnalysisRepo;
   subsystems: AnalysisSubsystem[];
   crossCuttingConcerns: AnalysisCrossCuttingConcern[];
-  navigation: AnalysisNavigationItem[];
-  missingOrUnclear: AnalysisMissingOrUnclear[];
 };
 
 export type RenderedFeaturePage = {

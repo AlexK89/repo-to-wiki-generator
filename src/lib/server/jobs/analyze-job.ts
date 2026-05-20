@@ -1,4 +1,9 @@
-import type { Analysis, AnalysisSubsystem } from "@/types/analysis";
+import type {
+  Analysis,
+  AnalysisDiscovery,
+  AnalysisSubsystem,
+  SubsystemDeepDive,
+} from "@/types/analysis";
 import type { AnalyzeJobPublic } from "@/types/job";
 import { buildRepositoryDigest } from "../github/digest";
 import type { DigestFileExcerpt, RepositoryDigest } from "../github/digest";
@@ -16,6 +21,11 @@ import {
   detectGenericSubsystems,
 } from "../llm/analysis-runner";
 import {
+  createDeepDivePrompt,
+  mergeDiscoveryWithDeepDives,
+  parseDeepDiveOutput,
+} from "../llm/deepdive-runner";
+import {
   createBackgroundJsonResponse,
   parseStructuredJson,
   retrieveBackgroundJsonResponse,
@@ -28,7 +38,9 @@ import {
   createSubsystemPagePrompt,
   parseSubsystemPageOutput,
 } from "../llm/page-runner";
-import { analysisSchema } from "../llm/zod-schemas";
+import { repoAnalyserDiscoveryPrompt } from "@/prompts/repo-analyser-discovery";
+import { renderPrompt } from "../llm/render-prompt";
+import { analysisDiscoverySchema } from "../llm/zod-schemas";
 
 type PageResponseRequest = {
   subsystemId: string;
@@ -37,13 +49,29 @@ type PageResponseRequest = {
   retries?: number;
 };
 
+type DeepDiveResponseRequest = {
+  subsystemId: string;
+  responseId: string;
+  retries?: number;
+};
+
 const MAX_PAGE_RETRIES = 1;
-const ANALYSIS_TIMEOUT_MS = 4 * 60 * 1000;
+const MAX_DEEP_DIVE_RETRIES = 1;
+const DISCOVERY_TIMEOUT_MS = 90_000;
+const DEEP_DIVE_TIMEOUT_MS = 120_000;
+const ANALYSIS_TIMEOUT_MS = DISCOVERY_TIMEOUT_MS + DEEP_DIVE_TIMEOUT_MS;
 const WRITING_TIMEOUT_MS = 6 * 60 * 1000;
+
+type AnalysisStage = "discovery" | "deep-dive";
 
 type AnalyzeJobData = {
   startedAt: number;
   digest?: RepositoryDigest;
+  analysisStage?: AnalysisStage;
+  discovery?: AnalysisDiscovery;
+  deepDiveRequests?: DeepDiveResponseRequest[];
+  deepDivesDone?: number;
+  totalDeepDives?: number;
   analysis?: Analysis;
   pageRequests?: PageResponseRequest[];
   pagesDone?: number;
@@ -56,8 +84,16 @@ type PageResponseResult = {
   response: BackgroundJsonResponse;
 };
 
-const ANALYSIS_INSTRUCTIONS =
-  "Return only the repository analysis JSON. Prefer feature and workflow names over technical layer names.";
+type DeepDiveResponseResult = {
+  request: DeepDiveResponseRequest;
+  response: BackgroundJsonResponse;
+};
+
+const DISCOVERY_INSTRUCTIONS =
+  "Return only the repository discovery JSON. Prefer user-facing feature names over technical layer names.";
+
+const DEEP_DIVE_INSTRUCTIONS =
+  "Return only the subsystem deep-dive JSON. Every behaviour and public interface must cite a real file:line range.";
 
 const FEATURE_PAGE_INSTRUCTIONS =
   "Return only the feature page JSON. Every concrete implementation claim needs a validated source citation.";
@@ -104,13 +140,20 @@ const getTotalPages = (data: AnalyzeJobData) =>
   data.pagesDone ??
   0;
 
+const getFeaturesFound = (data: AnalyzeJobData) =>
+  data.analysis?.subsystems.length ??
+  data.discovery?.subsystems.length ??
+  0;
+
 const getMessage = (job: AnalyzeJobRow, data: AnalyzeJobData) => {
   if (job.status === "failed") return job.error ?? "Generation failed.";
   if (job.status === "completed") return "Wiki ready.";
   if (job.status === "writing") {
     return `Writing cited pages ${data.pagesDone ?? 0}/${getTotalPages(data)}.`;
   }
-
+  if (data.analysisStage === "deep-dive") {
+    return `Researching ${data.deepDivesDone ?? 0}/${data.totalDeepDives ?? 0} features in parallel.`;
+  }
   return "Identifying user-facing features with gpt-5-mini.";
 };
 
@@ -127,7 +170,7 @@ export const toPublicAnalyzeJob = (
     phase: job.phase,
     progress: job.progress,
     message: getMessage(job, data),
-    featuresFound: data.analysis?.subsystems.length ?? 0,
+    featuresFound: getFeaturesFound(data),
     pagesDone:
       job.status === "completed" ? totalPages : data.pagesDone ?? 0,
     totalPages,
@@ -141,17 +184,93 @@ export const toPublicAnalyzeJob = (
   };
 };
 
-const createAnalysisResponse = async (digest: RepositoryDigest) =>
-  createBackgroundJsonResponse({
-    prompt: digest.prompt,
-    instructions: ANALYSIS_INSTRUCTIONS,
+const createDiscoveryResponse = async (
+  digest: RepositoryDigest,
+  isRepair: boolean,
+  guardResult?: { offendingSubsystems: string[] },
+) => {
+  const basePrompt = renderPrompt(repoAnalyserDiscoveryPrompt, {
+    REPO_METADATA: digest.repoMetadata,
+    FILE_TREE: digest.fileTree,
+    FILE_EXCERPTS: digest.fileExcerpts,
+  });
+  const prompt =
+    isRepair && guardResult
+      ? buildGenericRepairPrompt(basePrompt, {
+          hasGenericSubsystems: true,
+          offendingSubsystems: guardResult.offendingSubsystems,
+        })
+      : basePrompt;
+
+  return createBackgroundJsonResponse({
+    prompt,
+    instructions: DISCOVERY_INSTRUCTIONS,
     maxOutputTokens: 5_000,
     metadata: {
-      kind: "repository-analysis",
+      kind: isRepair ? "repository-discovery-repair" : "repository-discovery",
       repo: digest.repository.fullName,
       sha: digest.repository.sha.slice(0, 40),
     },
   });
+};
+
+const createDeepDiveRequests = async (
+  discovery: AnalysisDiscovery,
+  digest: RepositoryDigest,
+): Promise<DeepDiveResponseRequest[]> =>
+  Promise.all(
+    discovery.subsystems.map(async (subsystem) => {
+      const deepDivePrompt = createDeepDivePrompt(subsystem, digest);
+      const response = await createBackgroundJsonResponse({
+        prompt: deepDivePrompt.prompt,
+        instructions: DEEP_DIVE_INSTRUCTIONS,
+        maxOutputTokens: 3_000,
+        metadata: {
+          kind: "subsystem-deep-dive",
+          repo: digest.repository.fullName,
+          subsystem: subsystem.id.slice(0, 64),
+        },
+      });
+
+      return {
+        subsystemId: subsystem.id,
+        responseId: response.responseId,
+      };
+    }),
+  );
+
+const retryFailedDeepDive = async (
+  request: DeepDiveResponseRequest,
+  discovery: AnalysisDiscovery,
+  digest: RepositoryDigest,
+): Promise<DeepDiveResponseRequest> => {
+  const subsystem = discovery.subsystems.find(
+    (candidate) => candidate.id === request.subsystemId,
+  );
+  if (!subsystem) {
+    throw new Error(
+      `Cannot retry deep-dive: subsystem ${request.subsystemId} missing from discovery`,
+    );
+  }
+
+  const deepDivePrompt = createDeepDivePrompt(subsystem, digest);
+  const response = await createBackgroundJsonResponse({
+    prompt: deepDivePrompt.prompt,
+    instructions: DEEP_DIVE_INSTRUCTIONS,
+    maxOutputTokens: 4_000,
+    metadata: {
+      kind: "subsystem-deep-dive-retry",
+      repo: digest.repository.fullName,
+      subsystem: request.subsystemId.slice(0, 64),
+    },
+  });
+
+  return {
+    subsystemId: request.subsystemId,
+    responseId: response.responseId,
+    retries: (request.retries ?? 0) + 1,
+  };
+};
 
 const createPageRequests = async (
   analysis: Analysis,
@@ -236,7 +355,7 @@ export const startAnalyzeJob = async (
     });
   }
 
-  const response = await createAnalysisResponse(digest);
+  const response = await createDiscoveryResponse(digest, false);
 
   return createAnalyzeJob({
     repoUrl: canonicalRepoUrl,
@@ -247,64 +366,198 @@ export const startAnalyzeJob = async (
     data: {
       startedAt,
       digest,
+      analysisStage: "discovery",
     } satisfies AnalyzeJobData,
   });
 };
 
-const advanceAnalyzingJob = async (job: AnalyzeJobRow) => {
+const advanceDiscoveryStage = async (job: AnalyzeJobRow) => {
   const data = getJobData(job);
   const digest = data.digest;
 
   if (!digest || !job.openaiResponseId) {
-    throw new Error("Analysis job is missing digest or OpenAI response id");
+    throw new Error("Discovery job is missing digest or OpenAI response id");
   }
 
   const response = await retrieveBackgroundJsonResponse(job.openaiResponseId);
+  console.log(
+    `[analyze-job ${job.id.slice(0, 8)}] discovery openai=${response.responseId.slice(0, 16)} status=${response.status}${response.errorMessage ? ` err="${response.errorMessage}"` : ""}`,
+  );
   const terminalError = getOpenAITerminalError(response);
 
   if (terminalError) throw new Error(terminalError);
   if (isPendingOpenAIStatus(response.status)) return job;
 
-  const analysis = parseStructuredJson(analysisSchema, response.outputText);
-  const guardResult = detectGenericSubsystems(analysis);
+  const discovery = parseStructuredJson(
+    analysisDiscoverySchema,
+    response.outputText,
+  );
+  const guardResult = detectGenericSubsystems(discovery);
 
   if (guardResult.hasGenericSubsystems && !data.repairAttempted) {
-    const repairResponse = await createBackgroundJsonResponse({
-      prompt: buildGenericRepairPrompt(digest.prompt, guardResult),
-      instructions: ANALYSIS_INSTRUCTIONS,
-      maxOutputTokens: 5_000,
-      metadata: {
-        kind: "repository-analysis-repair",
-        repo: digest.repository.fullName,
-        sha: digest.repository.sha.slice(0, 40),
-      },
-    });
+    console.log(
+      `[analyze-job ${job.id.slice(0, 8)}] generic-slug repair: ${guardResult.offendingSubsystems.join(", ")}`,
+    );
+    const repairResponse = await createDiscoveryResponse(
+      digest,
+      true,
+      guardResult,
+    );
 
-    return updateAnalyzeJob(job, {
-      progress: 45,
-      openaiResponseId: repairResponse.responseId,
-      data: {
-        ...data,
-        repairAttempted: true,
-      } satisfies AnalyzeJobData,
-    });
+    return updateAnalyzeJob(
+      job,
+      {
+        progress: 40,
+        openaiResponseId: repairResponse.responseId,
+        data: {
+          ...data,
+          repairAttempted: true,
+        } satisfies AnalyzeJobData,
+      },
+      { force: true },
+    );
   }
 
+  const deepDiveRequests = await createDeepDiveRequests(discovery, digest);
+  console.log(
+    `[analyze-job ${job.id.slice(0, 8)}] fanned out ${deepDiveRequests.length} deep-dives`,
+  );
+
+  return updateAnalyzeJob(
+    job,
+    {
+      progress: 45,
+      openaiResponseId: null,
+      data: {
+        ...data,
+        analysisStage: "deep-dive",
+        discovery,
+        deepDiveRequests,
+        deepDivesDone: 0,
+        totalDeepDives: deepDiveRequests.length,
+      } satisfies AnalyzeJobData,
+    },
+    { force: true },
+  );
+};
+
+const retrieveDeepDiveResponses = async (
+  deepDiveRequests: DeepDiveResponseRequest[],
+): Promise<DeepDiveResponseResult[]> =>
+  Promise.all(
+    deepDiveRequests.map(async (request) => ({
+      request,
+      response: await retrieveBackgroundJsonResponse(request.responseId),
+    })),
+  );
+
+const advanceDeepDiveStage = async (job: AnalyzeJobRow) => {
+  const data = getJobData(job);
+  const { digest, discovery, deepDiveRequests } = data;
+
+  if (!digest || !discovery || !deepDiveRequests) {
+    throw new Error(
+      "Deep-dive job is missing digest, discovery, or deep-dive requests",
+    );
+  }
+
+  const responses = await retrieveDeepDiveResponses(deepDiveRequests);
+  const nextRequests = [...deepDiveRequests];
+  let didRetry = false;
+  let permanentlyFailed: DeepDiveResponseResult | null = null;
+
+  for (let index = 0; index < responses.length; index += 1) {
+    const result = responses[index];
+    if (!result) continue;
+    const terminalError = getOpenAITerminalError(result.response);
+    if (!terminalError) continue;
+
+    const attempt = result.request.retries ?? 0;
+    if (attempt >= MAX_DEEP_DIVE_RETRIES) {
+      permanentlyFailed = result;
+      break;
+    }
+
+    nextRequests[index] = await retryFailedDeepDive(
+      result.request,
+      discovery,
+      digest,
+    );
+    responses[index] = {
+      request: nextRequests[index],
+      response: {
+        responseId: nextRequests[index].responseId,
+        status: "queued",
+        outputText: "",
+      },
+    };
+    didRetry = true;
+  }
+
+  if (permanentlyFailed) {
+    throw new Error(
+      getOpenAITerminalError(permanentlyFailed.response) ??
+        `Deep-dive ${permanentlyFailed.request.subsystemId} failed`,
+    );
+  }
+
+  const completed = responses.filter(
+    ({ response }) => response.status === "completed",
+  );
+  const deepDivesDone = completed.length;
+
+  if (didRetry || deepDivesDone < deepDiveRequests.length) {
+    return updateAnalyzeJob(
+      job,
+      {
+        progress:
+          45 + Math.round((deepDivesDone / deepDiveRequests.length) * 15),
+        data: {
+          ...data,
+          deepDiveRequests: nextRequests,
+          deepDivesDone,
+        } satisfies AnalyzeJobData,
+      },
+      { force: true },
+    );
+  }
+
+  const deepDives: SubsystemDeepDive[] = completed.map(({ request, response }) =>
+    parseDeepDiveOutput(request.subsystemId, response.outputText),
+  );
+  const analysis = mergeDiscoveryWithDeepDives(discovery, deepDives);
   const pageRequests = await createPageRequests(analysis, digest);
 
-  return updateAnalyzeJob(job, {
-    status: "writing",
-    phase: "write",
-    progress: 60,
-    openaiResponseId: null,
-    data: {
-      ...data,
-      analysis,
-      pageRequests,
-      pagesDone: 0,
-      totalPages: pageRequests.length,
-    } satisfies AnalyzeJobData,
-  });
+  console.log(
+    `[analyze-job ${job.id.slice(0, 8)}] all deep-dives complete, writing ${pageRequests.length} pages`,
+  );
+
+  return updateAnalyzeJob(
+    job,
+    {
+      status: "writing",
+      phase: "write",
+      progress: 60,
+      openaiResponseId: null,
+      data: {
+        ...data,
+        analysis,
+        pageRequests,
+        pagesDone: 0,
+        totalPages: pageRequests.length,
+        deepDivesDone: deepDiveRequests.length,
+      } satisfies AnalyzeJobData,
+    },
+    { force: true },
+  );
+};
+
+const advanceAnalyzingJob = async (job: AnalyzeJobRow) => {
+  const data = getJobData(job);
+  if (data.analysisStage === "deep-dive") {
+    return advanceDeepDiveStage(job);
+  }
+  return advanceDiscoveryStage(job);
 };
 
 const retrievePageResponses = async (pageRequests: PageResponseRequest[]) =>
@@ -373,7 +626,11 @@ const advanceWritingJob = async (job: AnalyzeJobRow) => {
     );
     pageResponses[index] = {
       request: nextRequests[index],
-      response: { responseId: nextRequests[index].responseId, status: "queued", outputText: "" },
+      response: {
+        responseId: nextRequests[index].responseId,
+        status: "queued",
+        outputText: "",
+      },
     };
     didRetry = true;
   }
@@ -391,14 +648,18 @@ const advanceWritingJob = async (job: AnalyzeJobRow) => {
   const pagesDone = completedPages.length;
 
   if (didRetry || pagesDone < pageRequests.length) {
-    return updateAnalyzeJob(job, {
-      progress: 60 + Math.round((pagesDone / pageRequests.length) * 30),
-      data: {
-        ...data,
-        pageRequests: nextRequests,
-        pagesDone,
-      } satisfies AnalyzeJobData,
-    });
+    return updateAnalyzeJob(
+      job,
+      {
+        progress: 60 + Math.round((pagesDone / pageRequests.length) * 30),
+        data: {
+          ...data,
+          pageRequests: nextRequests,
+          pagesDone,
+        } satisfies AnalyzeJobData,
+      },
+      { force: true },
+    );
   }
 
   const pages = parseCompletedPages(analysis, pageResponses);
@@ -416,28 +677,40 @@ const advanceWritingJob = async (job: AnalyzeJobRow) => {
     digest,
   });
 
-  return updateAnalyzeJob(job, {
-    status: "completed",
-    phase: "finalize",
-    progress: 100,
-    wikiId: persistedWiki.id,
-    finishedAt: new Date().toISOString(),
-    data: {
-      ...data,
-      pagesDone: pageRequests.length,
-      totalPages: pageRequests.length,
-    } satisfies AnalyzeJobData,
-  });
+  return updateAnalyzeJob(
+    job,
+    {
+      status: "completed",
+      phase: "finalize",
+      progress: 100,
+      wikiId: persistedWiki.id,
+      finishedAt: new Date().toISOString(),
+      data: {
+        ...data,
+        pagesDone: pageRequests.length,
+        totalPages: pageRequests.length,
+      } satisfies AnalyzeJobData,
+    },
+    { force: true },
+  );
 };
 
-const failJob = (job: AnalyzeJobRow, error: unknown) =>
-  updateAnalyzeJob(job, {
-    status: "failed",
-    phase: "finalize",
-    progress: Math.max(job.progress, 95),
-    error: getErrorMessage(error),
-    finishedAt: new Date().toISOString(),
-  });
+const failJob = (job: AnalyzeJobRow, error: unknown) => {
+  console.log(
+    `[analyze-job ${job.id.slice(0, 8)}] FAIL "${getErrorMessage(error)}"`,
+  );
+  return updateAnalyzeJob(
+    job,
+    {
+      status: "failed",
+      phase: "finalize",
+      progress: Math.max(job.progress, 95),
+      error: getErrorMessage(error),
+      finishedAt: new Date().toISOString(),
+    },
+    { force: true },
+  );
+};
 
 export const advanceAnalyzeJob = async (
   jobId: string,
@@ -450,7 +723,16 @@ export const advanceAnalyzeJob = async (
   }
 
   const job = await claimAnalyzeJob(jobId);
-  if (!job) return existing;
+  if (!job) {
+    console.log(
+      `[analyze-job ${jobId.slice(0, 8)}] claim skipped (recently updated), status=${existing.status}`,
+    );
+    return existing;
+  }
+  const data = getJobData(job);
+  console.log(
+    `[analyze-job ${jobId.slice(0, 8)}] advancing status=${job.status} phase=${job.phase} stage=${data.analysisStage ?? "-"}`,
+  );
 
   const createdAtMs = new Date(job.createdAt).getTime();
   const elapsedMs = Date.now() - createdAtMs;

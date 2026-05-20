@@ -1,4 +1,3 @@
-import { repoAnalyserPrompt } from "../../../prompts/repo-analyser";
 import {
   fetchGitHubFiles,
   getTopLevelDirectory,
@@ -42,7 +41,6 @@ export type RepositoryDigestStats = {
   filesInTree: number;
   filesSelected: number;
   digestBytes: number;
-  promptBytes: number;
   treeEntriesShown: number;
   treeTruncatedByGitHub: boolean;
   languageStats: LanguageStat[];
@@ -62,7 +60,6 @@ export type RepositoryDigest = PromptDigestSections & {
     sha: string;
   };
   selectedFiles: DigestFileExcerpt[];
-  prompt: string;
   stats: RepositoryDigestStats;
 };
 
@@ -351,12 +348,6 @@ const formatFileExcerpts = (excerpts: DigestFileExcerpt[]) =>
 
 const getByteLength = (value: string) => Buffer.byteLength(value, "utf8");
 
-export const renderRepoAnalyserPrompt = (sections: PromptDigestSections) =>
-  repoAnalyserPrompt
-    .replace("{{REPO_METADATA}}", sections.repoMetadata)
-    .replace("{{FILE_TREE}}", sections.fileTree)
-    .replace("{{FILE_EXCERPTS}}", sections.fileExcerpts);
-
 export const buildRepositoryDigest = async (
   repoUrl: string,
   options: RepositoryDigestOptions = {},
@@ -384,11 +375,6 @@ export const buildRepositoryDigest = async (
     repositoryTree.truncated,
   );
   const fileExcerpts = formatFileExcerpts(excerpts);
-  const prompt = renderRepoAnalyserPrompt({
-    repoMetadata,
-    fileTree,
-    fileExcerpts,
-  });
 
   return {
     repository: repositoryTree.repository,
@@ -396,7 +382,6 @@ export const buildRepositoryDigest = async (
     fileTree,
     fileExcerpts,
     selectedFiles: excerpts,
-    prompt,
     stats: {
       filesInTree: repositoryTree.tree.filter((entry) => entry.type === "blob")
         .length,
@@ -405,7 +390,6 @@ export const buildRepositoryDigest = async (
         getByteLength(repoMetadata) +
         getByteLength(fileTree) +
         getByteLength(fileExcerpts),
-      promptBytes: getByteLength(prompt),
       treeEntriesShown: Math.min(repositoryTree.tree.length, maxTreeEntries),
       treeTruncatedByGitHub: repositoryTree.truncated,
       languageStats,

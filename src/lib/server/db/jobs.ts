@@ -153,7 +153,7 @@ export const claimAnalyzeJob = async (
       set updated_at = now()
       where id = $1
         and status in ('analyzing', 'writing')
-        and updated_at < now() - interval '1500 milliseconds'
+        and updated_at < now() - interval '10 seconds'
       returning
         id,
         repo_url as "repoUrl",
@@ -189,6 +189,7 @@ export const getAnalyzeJob = async (
 export const updateAnalyzeJob = async (
   job: AnalyzeJobRow,
   updates: UpdateAnalyzeJobInput,
+  options: { force?: boolean } = {},
 ): Promise<AnalyzeJobRow> => {
   await ensureDatabaseSchema();
   const sql = getDatabaseClient();
@@ -219,7 +220,7 @@ export const updateAnalyzeJob = async (
         openai_response_id = $8,
         finished_at = $9,
         updated_at = now()
-      where id = $1 and updated_at = $10
+      where id = $1${options.force ? "" : " and updated_at = $10"}
       returning
         id,
         repo_url as "repoUrl",
@@ -244,7 +245,7 @@ export const updateAnalyzeJob = async (
       nextJob.error,
       nextJob.openaiResponseId,
       nextJob.finishedAt,
-      job.updatedAt,
+      ...(options.force ? [] : [job.updatedAt]),
     ],
   )) as AnalyzeJobDbRow[];
 

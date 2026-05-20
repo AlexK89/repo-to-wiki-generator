@@ -48,7 +48,6 @@ const handler: ApiHandler = async (request, response) => {
 
   const requestUrl = getRequestUrl(request);
   const repoUrl = requestUrl.searchParams.get("url") ?? DEFAULT_DIGEST_REPO_URL;
-  const includePrompt = requestUrl.searchParams.get("includePrompt") === "1";
 
   try {
     const digest = await buildRepositoryDigest(repoUrl, {
@@ -63,7 +62,6 @@ const handler: ApiHandler = async (request, response) => {
         repoMetadata: digest.repoMetadata,
         fileTree: digest.fileTree,
         fileExcerpts: digest.fileExcerpts,
-        ...(includePrompt ? { prompt: digest.prompt } : {}),
       },
     });
   } catch (error) {

@@ -141,16 +141,8 @@ const getCategoryIdForSubsystem = (
   return category?.id ?? categories[0]?.id ?? "core-product-behaviour";
 };
 
-const getSubsystemSlug = (
-  analysis: Analysis,
-  subsystem: AnalysisSubsystem,
-) => {
-  const navigationItem = analysis.navigation.find(
-    (item) => item.subsystemId === subsystem.id,
-  );
-
-  return slugify(navigationItem?.slug ?? subsystem.id ?? subsystem.title);
-};
+const getSubsystemSlug = (subsystem: AnalysisSubsystem) =>
+  slugify(subsystem.id || subsystem.title);
 
 const getStack = (analysis: Analysis) =>
   [
@@ -392,12 +384,10 @@ const getPageLookup = (pages: RenderedSubsystemPage[]) =>
 
 const createFallbackPage = (subsystem: AnalysisSubsystem): RenderedFeaturePage => ({
   overview: subsystem.summary,
-  howItWorks: [
-    subsystem.behaviours.map((behaviour) => behaviour.description).join("\n\n"),
-    subsystem.technicalNotes.join("\n\n"),
-  ]
+  howItWorks: subsystem.behaviours
+    .map((behaviour) => behaviour.description)
     .filter(Boolean)
-    .join("\n\n"),
+    .join("\n\n") || subsystem.userValue,
   citations: [],
   diagram: deriveDiagramFromDataFlow(subsystem),
 });
@@ -414,7 +404,7 @@ export const assembleWiki = ({
   const subsystemSlugMap = new Map(
     analysis.subsystems.map((subsystem) => [
       subsystem.id,
-      getSubsystemSlug(analysis, subsystem),
+      getSubsystemSlug(subsystem),
     ]),
   );
   const features = analysis.subsystems.map((subsystem) =>

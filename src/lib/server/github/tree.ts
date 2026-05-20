@@ -114,8 +114,12 @@ const readGitHubError = async (response: Response) => {
   }
 };
 
-const normalizeRepositoryPath = (repoUrl: string) =>
-  repoUrl.trim().replace(/\.git$/, "");
+const normalizeRepositoryPath = (repoUrl: string) => {
+  const trimmed = repoUrl.trim().replace(/\.git$/, "");
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^[\w.-]+\/[\w.-]+$/.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+};
 
 const assertRepositoryParts = (owner: string | undefined, repo: string | undefined) => {
   if (!owner || !repo) {
@@ -180,7 +184,14 @@ export const parseGitHubRepositoryUrl = (
     return normalizeRepositoryReference(owner, repo);
   }
 
-  const parsedUrl = new URL(normalizedRepositoryPath);
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(normalizedRepositoryPath);
+  } catch {
+    throw new Error(
+      `Could not parse "${repoUrl}" — expected a GitHub URL like https://github.com/owner/repo`,
+    );
+  }
 
   if (!isSupportedGitHubHost(parsedUrl.hostname)) {
     throw new Error("Only github.com repository URLs are supported");
