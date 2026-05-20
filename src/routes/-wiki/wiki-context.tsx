@@ -4,6 +4,7 @@ import type { Wiki } from "@/types/wiki";
 
 type WikiContextValue = {
   wiki: Wiki;
+  wikiId: string;
   isSearchOpen: boolean;
   setSearchOpen: (open: boolean) => void;
 };

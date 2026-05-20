@@ -7,19 +7,19 @@ import { cn } from "@/lib/utils";
 import { useWiki } from "./wiki-context";
 
 export function SearchCommand() {
-  const { wiki, isSearchOpen, setSearchOpen } = useWiki();
+  const { wiki, wikiId, isSearchOpen, setSearchOpen } = useWiki();
   const navigate = useNavigate();
 
   const close = () => setSearchOpen(false);
 
   const goToFeature = (slug: string) => {
     close();
-    navigate({ to: "/wiki/$wikiId/$slug", params: { wikiId: "mock", slug } });
+    navigate({ to: "/wiki/$wikiId/$slug", params: { wikiId, slug } });
   };
 
   const goToOverview = () => {
     close();
-    navigate({ to: "/wiki/$wikiId", params: { wikiId: "mock" } });
+    navigate({ to: "/wiki/$wikiId", params: { wikiId } });
   };
 
   const groupHeadingClass =

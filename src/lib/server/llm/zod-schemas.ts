@@ -9,7 +9,7 @@ const evidenceSchema = z.object({
   path: z.string().min(1),
   lineStart: lineNumberSchema,
   lineEnd: lineNumberSchema,
-  reason: z.string().optional(),
+  reason: z.string().nullable().optional(),
 });
 
 const analysisEntryPointSchema = z.object({
@@ -73,7 +73,7 @@ const analysisSuggestedWikiPageSchema = z.object({
 const analysisSubsystemSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
-  category: z.string().min(1).optional(),
+  category: z.string().min(1).nullable().optional(),
   summary: z.string().min(1),
   userValue: z.string().min(1),
   whyThisIsUserFacing: z.string().min(1),
@@ -124,7 +124,7 @@ export const analysisSchema = z.object({
       "unknown",
     ]),
     inferredPurpose: z.string().min(1),
-    audience: z.string().optional(),
+    audience: z.string().nullable().optional(),
     confidence: confidenceSchema,
   }),
   subsystems: z.array(analysisSubsystemSchema).min(1).max(10),
@@ -138,7 +138,7 @@ const citationSchema = z.object({
   path: z.string().min(1),
   startLine: lineNumberSchema,
   endLine: lineNumberSchema,
-  excerpt: z.string().optional(),
+  excerpt: z.string().nullable().optional(),
 });
 
 const flowNodeSchema = z.object({
@@ -150,7 +150,7 @@ const flowNodeSchema = z.object({
 const flowEdgeSchema = z.object({
   from: z.string().min(1),
   to: z.string().min(1),
-  label: z.string().optional(),
+  label: z.string().nullable().optional(),
 });
 
 export const featurePageOutputSchema = z.object({
@@ -161,7 +161,7 @@ export const featurePageOutputSchema = z.object({
     .object({
       nodes: z.array(flowNodeSchema).min(2).max(8),
       edges: z.array(flowEdgeSchema).min(1).max(10),
-      caption: z.string().optional(),
+      caption: z.string().nullable().optional(),
     })
     .nullable()
     .optional(),

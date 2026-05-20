@@ -13,13 +13,26 @@ import {
   sourceFilesFromDigestExcerpts,
   validateCitations,
 } from "./citation-validator";
-import { generateStructuredJson } from "./openai";
+import { generateStructuredJson, parseStructuredJson } from "./openai";
 import { renderJsonPromptValue, renderPrompt } from "./render-prompt";
 import { featurePageOutputSchema } from "./zod-schemas";
+import type { FeaturePageOutputSchema } from "./zod-schemas";
 
 export type RenderSubsystemPagesInput = {
   analysis: Analysis;
   digest: RepositoryDigest;
+};
+
+export type SubsystemPagePrompt = {
+  subsystemId: string;
+  prompt: string;
+  evidenceFiles: DigestFileExcerpt[];
+};
+
+export type ParseSubsystemPageOutputInput = {
+  subsystem: AnalysisSubsystem;
+  outputText: string;
+  evidenceFiles: DigestFileExcerpt[];
 };
 
 const MAX_EVIDENCE_FILES = 10;
@@ -83,6 +96,31 @@ const normalizeFeaturePage = (
   };
 };
 
+const normalizeOutputPage = (
+  page: FeaturePageOutputSchema,
+): RenderedFeaturePage => ({
+  overview: page.overview,
+  howItWorks: page.howItWorks,
+  citations: page.citations.map((citation) => ({
+    n: citation.n,
+    path: citation.path,
+    startLine: citation.startLine,
+    endLine: citation.endLine,
+    excerpt: citation.excerpt ?? undefined,
+  })),
+  diagram: page.diagram
+    ? {
+        nodes: page.diagram.nodes,
+        edges: page.diagram.edges.map((edge) => ({
+          from: edge.from,
+          to: edge.to,
+          label: edge.label ?? undefined,
+        })),
+        caption: page.diagram.caption ?? undefined,
+      }
+    : null,
+});
+
 const renderSubsystemPrompt = (
   subsystem: AnalysisSubsystem,
   evidenceFiles: DigestFileExcerpt[],
@@ -92,25 +130,53 @@ const renderSubsystemPrompt = (
     EVIDENCE_FILES: evidenceFiles.map(formatEvidenceFile).join("\n\n"),
   });
 
+export const createSubsystemPagePrompt = (
+  subsystem: AnalysisSubsystem,
+  digest: RepositoryDigest,
+): SubsystemPagePrompt => {
+  const evidenceFiles = selectEvidenceFiles(subsystem, digest);
+
+  return {
+    subsystemId: subsystem.id,
+    prompt: renderSubsystemPrompt(subsystem, evidenceFiles),
+    evidenceFiles,
+  };
+};
+
+export const parseSubsystemPageOutput = ({
+  subsystem,
+  outputText,
+  evidenceFiles,
+}: ParseSubsystemPageOutputInput): RenderedSubsystemPage => {
+  const output = parseStructuredJson(featurePageOutputSchema, outputText);
+
+  return {
+    subsystemId: subsystem.id,
+    page: normalizeFeaturePage(normalizeOutputPage(output), evidenceFiles),
+  };
+};
+
 export const renderSubsystemPage = async (
   subsystem: AnalysisSubsystem,
   digest: RepositoryDigest,
 ): Promise<RenderedSubsystemPage> => {
-  const evidenceFiles = selectEvidenceFiles(subsystem, digest);
-  const prompt = renderSubsystemPrompt(subsystem, evidenceFiles);
+  const pagePrompt = createSubsystemPagePrompt(subsystem, digest);
   const result = await generateStructuredJson({
     schema: featurePageOutputSchema,
     schemaName: "feature_page",
-    prompt,
+    prompt: pagePrompt.prompt,
     instructions:
       "Return only the feature page JSON. Every concrete implementation claim needs a validated source citation.",
-    maxOutputTokens: 7_000,
-    timeoutMs: 30_000,
+    maxOutputTokens: 2_000,
+    timeoutMs: 35_000,
   });
 
   return {
     subsystemId: subsystem.id,
-    page: normalizeFeaturePage(result.output, evidenceFiles),
+    page: normalizeFeaturePage(
+      normalizeOutputPage(result.output),
+      pagePrompt.evidenceFiles,
+    ),
   };
 };
 

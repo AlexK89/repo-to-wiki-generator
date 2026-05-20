@@ -60,7 +60,10 @@ export type PhaseMeta = { detail: string; right: string };
 export function phaseDetails(phase: Phase, state: DerivedState): PhaseMeta {
   if (phase.id === "fetch") {
     return {
-      detail: phase.status === "queued" ? phase.detail : "pyproject.toml · README.md · 12 of 847 files",
+      detail:
+        phase.status === "queued"
+          ? phase.detail
+          : "Repository tree, manifests, and source excerpts",
       right: phase.status === "done" ? "done" : phase.status === "active" ? "reading…" : "",
     };
   }
@@ -86,7 +89,7 @@ export function phaseDetails(phase: Phase, state: DerivedState): PhaseMeta {
   }
   return {
     detail: phase.status === "done"
-      ? "38 citations resolved · cached as Textualize/rich-cli@8a4f2c1"
+      ? "Citations resolved · cached by commit SHA"
       : phase.detail,
     right: phase.status === "done" ? "done" : phase.status === "active" ? "validating…" : "",
   };

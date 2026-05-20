@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet, createFileRoute, useParams } from "@tanstack/react-router";
 
 import { richCliWiki } from "@/data/rich-cli-wiki";
+import { getWikiRequest } from "@/lib/client/api";
 import { useDarkMode } from "@/lib/use-dark-mode";
 import { SearchCommand } from "./-wiki/search-command";
 import { Sidebar } from "./-wiki/sidebar";
@@ -10,7 +11,8 @@ import { WikiProvider } from "./-wiki/wiki-context";
 
 export const Route = createFileRoute("/wiki/$wikiId")({
   component: WikiLayout,
-  loader: () => richCliWiki,
+  loader: ({ params }) =>
+    params.wikiId === "mock" ? richCliWiki : getWikiRequest(params.wikiId),
 });
 
 function WikiLayout() {
@@ -39,6 +41,7 @@ function WikiLayout() {
   return (
     <WikiProvider
       wiki={wiki}
+      wikiId={childParams.wikiId ?? "mock"}
       isSearchOpen={isSearchOpen}
       setSearchOpen={setSearchOpen}
     >

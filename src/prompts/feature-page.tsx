@@ -35,11 +35,11 @@ export const featurePagePrompt = `
         "path": string,
         "startLine": number,
         "endLine": number,
-        "excerpt": string
+        "excerpt": string | null
       }
     ],
     "diagram": null | {
-      "caption": string,
+      "caption": string | null,
       "nodes": [
         {
           "id": string,
@@ -51,7 +51,7 @@ export const featurePagePrompt = `
         {
           "from": string,
           "to": string,
-          "label": string
+          "label": string | null
         }
       ]
     }

@@ -40,9 +40,11 @@ export const repoAnalyserPrompt = `
   - If something is unclear, mark it as "unknown" or "inferred", and explain why.
   - Use exact file paths and line ranges for evidence.
   - Avoid generic descriptions.
-  - Return between 3 and 10 subsystems unless the repository is genuinely tiny.
+  - Return exactly 3 subsystems for small or medium repositories, and at most 4 for large repositories.
   - Create concise category labels based on this repository, not a fixed taxonomy.
-  - Use 2 to 7 category labels total. Examples: "Terminal rendering", "Shell workflows", "Browser automation", "State management".
+  - Use 2 to 5 category labels total. Examples: "Terminal rendering", "Shell workflows", "Browser automation", "State management".
+  - Keep each subsystem compact: 1-3 entryPoints, 1-3 coreFiles, 2-3 behaviours, 1-3 publicInterfaces.
+  - Keep evidence arrays to at most 2 items.
   - Be concise but specific.
 
   Return only valid JSON. Do not include Markdown.

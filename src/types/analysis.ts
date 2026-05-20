@@ -34,7 +34,7 @@ export type AnalysisEvidence = {
   path: string;
   lineStart: number;
   lineEnd: number;
-  reason?: string;
+  reason?: string | null;
 };
 
 export type AnalysisRepo = {
@@ -44,7 +44,7 @@ export type AnalysisRepo = {
   frameworks: string[];
   projectType: AnalysisProjectType;
   inferredPurpose: string;
-  audience?: string;
+  audience?: string | null;
   confidence: Confidence;
 };
 
@@ -92,7 +92,7 @@ export type AnalysisSuggestedWikiPage = {
 export type AnalysisSubsystem = {
   id: string;
   title: string;
-  category?: string;
+  category?: string | null;
   summary: string;
   userValue: string;
   whyThisIsUserFacing: string;

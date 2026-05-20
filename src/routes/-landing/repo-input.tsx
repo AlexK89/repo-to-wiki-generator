@@ -5,23 +5,29 @@ import { GithubIcon } from "@/components/icons/github-icon";
 import { cn } from "@/lib/utils";
 
 type Props = {
-  onSubmit: (url: string) => void;
+  onSubmit: (url: string) => void | Promise<void>;
+  error?: string | null;
+  isSubmitting?: boolean;
 };
 
-export function RepoInput({ onSubmit }: Props) {
+export function RepoInput({
+  onSubmit,
+  error = null,
+  isSubmitting = false,
+}: Props) {
   const [url, setUrl] = useState("");
   const [focused, setFocused] = useState(false);
 
-  const submit = (e?: SubmitEvent<HTMLFormElement>) => {
-    e?.preventDefault();
+  const submit = async (event?: SubmitEvent<HTMLFormElement>) => {
+    event?.preventDefault();
     const trimmed = url.trim();
 
-    if (!trimmed) return;
+    if (!trimmed || isSubmitting) return;
 
-    onSubmit(trimmed);
+    await onSubmit(trimmed);
   };
 
-  const enabled = url.trim().length > 0;
+  const enabled = url.trim().length > 0 && !isSubmitting;
 
   return (
     <form onSubmit={submit} className="relative mx-auto mb-3 max-w-150">
@@ -63,12 +69,15 @@ export function RepoInput({ onSubmit }: Props) {
               : "cursor-not-allowed bg-border text-fg-subtle",
           )}
         >
-          Generate wiki
+          {isSubmitting ? "Starting…" : "Generate wiki"}
           <ArrowRight size={13} />
         </button>
       </div>
+      {error ? (
+        <p className="mt-2.5 text-xs font-medium text-red-500">{error}</p>
+      ) : null}
       <p className="mt-2.5 text-xs text-fg-subtle">
-        Free · no signup · works on any public repo · usually under 60 seconds
+        Free · no signup · works on any public repo · runs safely in the background
       </p>
     </form>
   );

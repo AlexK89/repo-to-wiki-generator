@@ -2,18 +2,42 @@ import type { ApiHandler } from "../src/lib/server/http";
 import {
   getErrorMessage,
   getRequestUrl,
+  readJsonBody,
   sendJson,
   sendMethodNotAllowed,
 } from "../src/lib/server/http";
 import { buildRepositoryDigest } from "../src/lib/server/github/digest";
+import {
+  startAnalyzeJob,
+  toPublicAnalyzeJob,
+} from "../src/lib/server/jobs/analyze-job";
 
 const DEFAULT_DIGEST_REPO_URL = "https://github.com/Textualize/rich-cli";
 
+type AnalyzeRequestBody = {
+  url?: string;
+};
+
 const handler: ApiHandler = async (request, response) => {
   if (request.method === "POST") {
-    sendJson(response, 501, {
-      error: "SSE orchestration lands in Step 10. Use GET for the Step 8 digest preview.",
-    });
+    try {
+      const body = await readJsonBody<AnalyzeRequestBody>(request);
+      const repoUrl = body.url?.trim();
+
+      if (!repoUrl) {
+        sendJson(response, 400, { error: "A GitHub repository URL is required." });
+        return;
+      }
+
+      const job = await startAnalyzeJob(repoUrl);
+      sendJson(response, job.status === "completed" ? 200 : 202, {
+        job: toPublicAnalyzeJob(job),
+      });
+    } catch (error) {
+      sendJson(response, 500, {
+        error: getErrorMessage(error),
+      });
+    }
     return;
   }
 

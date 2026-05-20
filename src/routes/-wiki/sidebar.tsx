@@ -10,7 +10,7 @@ type Props = {
 };
 
 export function Sidebar({ activeSlug }: Props) {
-  const { wiki, setSearchOpen } = useWiki();
+  const { wiki, wikiId, setSearchOpen } = useWiki();
   const groups = getWikiCategoryGroups(wiki);
 
   return (
@@ -34,7 +34,7 @@ export function Sidebar({ activeSlug }: Props) {
       <nav className="nice-scroll flex-1 overflow-y-auto px-2 pb-6 pt-3">
         <SidebarItem
           to="/wiki/$wikiId"
-          params={{ wikiId: "mock" }}
+          params={{ wikiId }}
           label="Overview"
           oneLiner={wiki.summary}
           icon={BookOpen}
@@ -56,7 +56,7 @@ export function Sidebar({ activeSlug }: Props) {
                 <SidebarItem
                   key={feature.slug}
                   to="/wiki/$wikiId/$slug"
-                  params={{ wikiId: "mock", slug: feature.slug }}
+                  params={{ wikiId, slug: feature.slug }}
                   label={feature.title}
                   oneLiner={feature.oneLiner}
                   isActive={activeSlug === feature.slug}

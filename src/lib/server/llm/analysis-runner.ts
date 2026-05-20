@@ -27,7 +27,7 @@ const GENERIC_SUBSYSTEM_PATTERNS = [
 const isGenericSubsystemName = (value: string) =>
   GENERIC_SUBSYSTEM_PATTERNS.some((pattern) => pattern.test(value));
 
-const buildGenericRepairPrompt = (
+export const buildGenericRepairPrompt = (
   prompt: string,
   guardResult: AnalysisGenericGuardResult,
 ) =>
@@ -64,8 +64,8 @@ const requestAnalysis = async (prompt: string) => {
     prompt,
     instructions:
       "Return only the repository analysis JSON. Prefer feature and workflow names over technical layer names.",
-    maxOutputTokens: 12_000,
-    timeoutMs: 30_000,
+    maxOutputTokens: 5_000,
+    timeoutMs: 90_000,
   });
 
   return result.output as Analysis;

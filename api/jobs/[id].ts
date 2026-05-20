@@ -5,9 +5,12 @@ import {
   sendJson,
   sendMethodNotAllowed,
 } from "../../src/lib/server/http";
-import { getWikiById } from "../../src/lib/server/db/wikis";
+import {
+  advanceAnalyzeJob,
+  toPublicAnalyzeJob,
+} from "../../src/lib/server/jobs/analyze-job";
 
-const getWikiId = (requestPathname: string) =>
+const getJobId = (requestPathname: string) =>
   requestPathname.split("/").filter(Boolean).at(-1) ?? "";
 
 const handler: ApiHandler = async (request, response) => {
@@ -17,21 +20,21 @@ const handler: ApiHandler = async (request, response) => {
   }
 
   const requestUrl = getRequestUrl(request);
-  const wikiId = getWikiId(requestUrl.pathname);
+  const jobId = getJobId(requestUrl.pathname);
 
   try {
-    const wiki = await getWikiById(wikiId);
+    const job = await advanceAnalyzeJob(jobId);
 
-    if (!wiki) {
-      sendJson(response, 404, { error: "Wiki not found", wikiId });
+    if (!job) {
+      sendJson(response, 404, { error: "Job not found", jobId });
       return;
     }
 
-    sendJson(response, 200, { wiki: wiki.structure });
+    sendJson(response, 200, { job: toPublicAnalyzeJob(job) });
   } catch (error) {
     sendJson(response, 500, {
       error: getErrorMessage(error),
-      wikiId,
+      jobId,
     });
   }
 };
