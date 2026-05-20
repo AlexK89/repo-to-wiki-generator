@@ -28,13 +28,33 @@ export type EntryPoint = {
   citation: number;
 };
 
+export type FlowNodeKind = "input" | "core" | "branch";
+
+export type FlowNode = {
+  id: string;
+  label: string;
+  kind: FlowNodeKind;
+};
+
+export type FlowEdge = {
+  from: string;
+  to: string;
+  label?: string;
+};
+
+export type FeatureDiagram = {
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+  caption?: string;
+};
+
 export type FeaturePage = {
   overview: string;
   howItWorks: string;
   entryPoints: EntryPoint[];
   citations: Citation[];
   related: string[];
-  diagram?: string | null;
+  diagram?: FeatureDiagram | null;
 };
 
 export type Feature = {

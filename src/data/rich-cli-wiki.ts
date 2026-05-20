@@ -51,7 +51,25 @@ The rendered output is then handed to the same printing pipeline that powers eve
           { kind: "function", name: "main", signature: "def main(resource: str, ...) -> int", citation: 3 },
           { kind: "function", name: "render_resource", signature: "def render_resource(resource, console, options) -> RenderResult", citation: 4 },
         ],
-        diagram: "rendering-flow",
+        diagram: {
+          caption:
+            "File extension drives renderer selection · URLs detour through the fetcher first",
+          nodes: [
+            { id: "input", label: "rich <path>", kind: "input" },
+            { id: "router", label: "render_resource", kind: "core" },
+            { id: "markdown", label: "Markdown", kind: "branch" },
+            { id: "syntax", label: "Syntax", kind: "branch" },
+            { id: "structured", label: "JSON / CSV", kind: "branch" },
+            { id: "url", label: "URL fetcher", kind: "branch" },
+          ],
+          edges: [
+            { from: "input", to: "router" },
+            { from: "router", to: "markdown" },
+            { from: "router", to: "syntax" },
+            { from: "router", to: "structured" },
+            { from: "router", to: "url" },
+          ],
+        },
         citations: [
           { n: 1, path: "src/rich_cli/__main__.py", startLine: 412, endLine: 438, excerpt: "@click.command()\n@click.argument('resource', metavar='<PATH,TEXT,URL,or '-'>')\n@click.option('--print', '-p', is_flag=True, help='Print console markup.')\n# ... 30 more options\ndef main(resource, print, rule, ...):" },
           { n: 2, path: "src/rich_cli/__main__.py", startLine: 148, endLine: 172, excerpt: "RENDERERS = {\n    'md': render_markdown,\n    'markdown': render_markdown,\n    'json': render_json,\n    'csv': render_csv,\n    'rst': render_rst,\n    # ...\n}" },

@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { CategoryBadge } from "@/components/category-badge";
 import type { Feature, Wiki } from "@/types/wiki";
 import { EntryPoint } from "./entry-point";
+import { FeatureFlow } from "./feature-flow";
 import { ProseWithCitations } from "./prose-with-citations";
 import { RelatedFeatures } from "./related-features";
 import { SourcesList } from "./sources-list";
@@ -24,6 +25,7 @@ export function FeaturePage({ feature, wiki, wikiId }: Props) {
   const toc: TocItem[] = [
     { id: "overview", label: "Overview" },
     { id: "how-it-works", label: "How it works" },
+    ...(page.diagram ? [{ id: "flow", label: "Flow" }] : []),
     ...(page.entryPoints.length > 0
       ? [{ id: "entry-points", label: "Entry points" }]
       : []),
@@ -60,6 +62,12 @@ export function FeaturePage({ feature, wiki, wikiId }: Props) {
             repo={wiki.repo}
           />
         </Section>
+
+        {page.diagram && (
+          <Section id="flow" title="Flow">
+            <FeatureFlow diagram={page.diagram} />
+          </Section>
+        )}
 
         {page.entryPoints.length > 0 && (
           <Section id="entry-points" title="Entry points">
