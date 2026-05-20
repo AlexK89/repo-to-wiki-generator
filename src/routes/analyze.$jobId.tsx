@@ -99,10 +99,10 @@ function AnalyzeComponent() {
     return () => clearTimeout(timeout);
   }, [doneShown, isMockJob, job?.wikiId, jobId, navigate]);
 
-  const repoUrl =
-    job?.repoUrl ??
-    `https://github.com/${richCliWiki.repo.owner}/${richCliWiki.repo.name}`;
-  const sha = job?.repo?.sha ?? richCliWiki.repo.sha;
+  const repoUrl = isMockJob
+    ? `https://github.com/${richCliWiki.repo.owner}/${richCliWiki.repo.name}`
+    : job?.repoUrl ?? "";
+  const sha = isMockJob ? richCliWiki.repo.sha : job?.repo?.sha ?? "";
 
   const state = isMockJob
     ? deriveState(richCliLog, mockVisibleCount, isMockComplete)

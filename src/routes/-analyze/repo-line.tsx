@@ -17,10 +17,14 @@ export function RepoLine({ repoUrl, sha, isCentered }: Props) {
       )}
     >
       <GithubIcon size={11} />
-      <span className="overflow-hidden text-ellipsis">{stripped}</span>
-      <span className="shrink-0 rounded border border-border bg-bg-subtle px-1.5 py-px text-fg-subtle">
-        @{sha}
+      <span className="overflow-hidden text-ellipsis">
+        {stripped || "Resolving repository…"}
       </span>
+      {sha ? (
+        <span className="shrink-0 rounded border border-border bg-bg-subtle px-1.5 py-px text-fg-subtle">
+          @{sha.slice(0, 7)}
+        </span>
+      ) : null}
     </div>
   );
 }

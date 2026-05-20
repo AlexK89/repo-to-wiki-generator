@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
-import { Outlet, createFileRoute, useParams } from "@tanstack/react-router";
+import {
+  Outlet,
+  createFileRoute,
+  notFound,
+  useParams,
+} from "@tanstack/react-router";
 
+import { StatusScreen } from "@/components/status-screen";
 import { richCliWiki } from "@/data/rich-cli-wiki";
 import { getWikiRequest } from "@/lib/client/api";
 import { useDarkMode } from "@/lib/use-dark-mode";
@@ -11,8 +17,39 @@ import { WikiProvider } from "./-wiki/wiki-context";
 
 export const Route = createFileRoute("/wiki/$wikiId")({
   component: WikiLayout,
-  loader: ({ params }) =>
-    params.wikiId === "mock" ? richCliWiki : getWikiRequest(params.wikiId),
+  loader: async ({ params }) => {
+    if (params.wikiId === "mock") return richCliWiki;
+    try {
+      return await getWikiRequest(params.wikiId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/not found/i.test(message)) throw notFound();
+      throw error;
+    }
+  },
+  pendingComponent: () => (
+    <StatusScreen
+      variant="loading"
+      title="Loading wiki"
+      description="Fetching the cached structure for this repository."
+      showHomeLink={false}
+    />
+  ),
+  errorComponent: ({ error }) => (
+    <StatusScreen
+      variant="error"
+      title="Could not load this wiki"
+      description="The wiki could not be loaded. It may have been removed, or the server is temporarily unavailable."
+      detail={error instanceof Error ? error.message : String(error)}
+    />
+  ),
+  notFoundComponent: () => (
+    <StatusScreen
+      variant="not-found"
+      title="Wiki not found"
+      description="We could not find a generated wiki at this URL. Try generating one from the home page."
+    />
+  ),
 });
 
 function WikiLayout() {
