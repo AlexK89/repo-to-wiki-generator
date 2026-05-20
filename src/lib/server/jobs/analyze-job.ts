@@ -3,6 +3,7 @@ import type { AnalyzeJobPublic } from "@/types/job";
 import { buildRepositoryDigest } from "../github/digest";
 import type { DigestFileExcerpt, RepositoryDigest } from "../github/digest";
 import {
+  claimAnalyzeJob,
   createAnalyzeJob,
   getAnalyzeJob,
   updateAnalyzeJob,
@@ -33,7 +34,11 @@ type PageResponseRequest = {
   subsystemId: string;
   responseId: string;
   evidenceFiles: DigestFileExcerpt[];
+  retries?: number;
 };
+
+const MAX_PAGE_RETRIES = 1;
+const JOB_TIMEOUT_MS = 5 * 60 * 1000;
 
 type AnalyzeJobData = {
   startedAt: number;
@@ -156,7 +161,7 @@ const createPageRequests = async (
       const response = await createBackgroundJsonResponse({
         prompt: pagePrompt.prompt,
         instructions: FEATURE_PAGE_INSTRUCTIONS,
-        maxOutputTokens: 2_000,
+        maxOutputTokens: 4_000,
         metadata: {
           kind: "feature-page",
           repo: digest.repository.fullName,
@@ -308,6 +313,32 @@ const retrievePageResponses = async (pageRequests: PageResponseRequest[]) =>
     })),
   );
 
+const retryFailedPage = async (
+  request: PageResponseRequest,
+  analysis: Analysis,
+  digest: RepositoryDigest,
+): Promise<PageResponseRequest> => {
+  const subsystem = getSubsystem(analysis, request.subsystemId);
+  const pagePrompt = createSubsystemPagePrompt(subsystem, digest);
+  const response = await createBackgroundJsonResponse({
+    prompt: pagePrompt.prompt,
+    instructions: FEATURE_PAGE_INSTRUCTIONS,
+    maxOutputTokens: 4_000,
+    metadata: {
+      kind: "feature-page-retry",
+      repo: digest.repository.fullName,
+      subsystem: request.subsystemId.slice(0, 64),
+    },
+  });
+
+  return {
+    subsystemId: request.subsystemId,
+    responseId: response.responseId,
+    evidenceFiles: pagePrompt.evidenceFiles,
+    retries: (request.retries ?? 0) + 1,
+  };
+};
+
 const advanceWritingJob = async (job: AnalyzeJobRow) => {
   const data = getJobData(job);
   const { digest, analysis, pageRequests } = data;
@@ -317,12 +348,39 @@ const advanceWritingJob = async (job: AnalyzeJobRow) => {
   }
 
   const pageResponses = await retrievePageResponses(pageRequests);
-  const failedPage = pageResponses.find(({ response }) =>
-    Boolean(getOpenAITerminalError(response)),
-  );
+  const nextRequests = [...pageRequests];
+  let didRetry = false;
+  let permanentlyFailed: PageResponseResult | null = null;
 
-  if (failedPage) {
-    throw new Error(getOpenAITerminalError(failedPage.response) ?? "Page failed");
+  for (let index = 0; index < pageResponses.length; index += 1) {
+    const result = pageResponses[index];
+    if (!result) continue;
+    const terminalError = getOpenAITerminalError(result.response);
+    if (!terminalError) continue;
+
+    const attempt = result.request.retries ?? 0;
+    if (attempt >= MAX_PAGE_RETRIES) {
+      permanentlyFailed = result;
+      break;
+    }
+
+    nextRequests[index] = await retryFailedPage(
+      result.request,
+      analysis,
+      digest,
+    );
+    pageResponses[index] = {
+      request: nextRequests[index],
+      response: { responseId: nextRequests[index].responseId, status: "queued", outputText: "" },
+    };
+    didRetry = true;
+  }
+
+  if (permanentlyFailed) {
+    throw new Error(
+      getOpenAITerminalError(permanentlyFailed.response) ??
+        `Page ${permanentlyFailed.request.subsystemId} failed`,
+    );
   }
 
   const completedPages = pageResponses.filter(
@@ -330,11 +388,12 @@ const advanceWritingJob = async (job: AnalyzeJobRow) => {
   );
   const pagesDone = completedPages.length;
 
-  if (pagesDone < pageRequests.length) {
+  if (didRetry || pagesDone < pageRequests.length) {
     return updateAnalyzeJob(job, {
       progress: 60 + Math.round((pagesDone / pageRequests.length) * 30),
       data: {
         ...data,
+        pageRequests: nextRequests,
         pagesDone,
       } satisfies AnalyzeJobData,
     });
@@ -381,10 +440,20 @@ const failJob = (job: AnalyzeJobRow, error: unknown) =>
 export const advanceAnalyzeJob = async (
   jobId: string,
 ): Promise<AnalyzeJobRow | null> => {
-  const job = await getAnalyzeJob(jobId);
+  const existing = await getAnalyzeJob(jobId);
 
-  if (!job) return null;
-  if (job.status === "completed" || job.status === "failed") return job;
+  if (!existing) return null;
+  if (existing.status === "completed" || existing.status === "failed") {
+    return existing;
+  }
+
+  const job = await claimAnalyzeJob(jobId);
+  if (!job) return existing;
+
+  const data = getJobData(job);
+  if (Date.now() - data.startedAt > JOB_TIMEOUT_MS) {
+    return failJob(job, new Error("Analysis job timed out after 5 minutes"));
+  }
 
   try {
     if (job.status === "analyzing") return await advanceAnalyzingJob(job);

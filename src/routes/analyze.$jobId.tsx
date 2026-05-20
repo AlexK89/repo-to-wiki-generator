@@ -5,7 +5,11 @@ import { richCliLog, richCliWiki } from "@/data/rich-cli-wiki";
 import { getAnalyzeJobRequest } from "@/lib/client/api";
 import type { AnalyzeJobPublic } from "@/types/job";
 import { ChecklistLoader } from "./-analyze/checklist-loader";
-import { deriveState, lineRevealDelay } from "./-analyze/derive-state";
+import {
+  deriveState,
+  deriveStateFromJob,
+  lineRevealDelay,
+} from "./-analyze/derive-state";
 import { GenerationControls } from "./-analyze/generation-controls";
 import { GenerationHeader } from "./-analyze/generation-header";
 
@@ -14,7 +18,6 @@ export const Route = createFileRoute("/analyze/$jobId")({
 });
 
 function AnalyzeComponent() {
-  const log = richCliLog;
   const navigate = useNavigate();
   const { jobId } = Route.useParams();
   const isMockJob = jobId === "mock";
@@ -23,31 +26,31 @@ function AnalyzeComponent() {
   const [error, setError] = useState<string | null>(null);
   const [mockVisibleCount, setMockVisibleCount] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const isComplete = isMockJob
-    ? mockVisibleCount >= log.length
-    : job?.status === "completed";
-  const visibleCount = isMockJob
-    ? mockVisibleCount
-    : job
-      ? getVisibleCountForJob(job, log.length)
-      : 0;
-  const doneShown = isComplete && visibleCount >= log.length;
-  const repoUrl =
-    job?.repoUrl ??
-    `https://github.com/${richCliWiki.repo.owner}/${richCliWiki.repo.name}`;
-  const sha = job?.repo?.sha ?? richCliWiki.repo.sha;
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [startedAtMs] = useState(() => Date.now());
+
+  const isMockComplete = mockVisibleCount >= richCliLog.length;
+  const doneShown = isMockJob ? isMockComplete : job?.status === "completed";
 
   useEffect(() => {
-    if (!isMockJob || isPaused || doneShown) return;
+    if (!isMockJob || isPaused || isMockComplete) return;
     const timeout = setTimeout(
-      () => setMockVisibleCount((count) => cappingVisibleCount(count + 1, log)),
-      lineRevealDelay(log[mockVisibleCount]),
+      () =>
+        setMockVisibleCount((count) =>
+          Math.min(count + 1, richCliLog.length),
+        ),
+      lineRevealDelay(richCliLog[mockVisibleCount]),
     );
     return () => clearTimeout(timeout);
-  }, [mockVisibleCount, isPaused, doneShown, isMockJob, log]);
+  }, [mockVisibleCount, isPaused, isMockComplete, isMockJob]);
 
   useEffect(() => {
-    if (isMockJob || isPaused || job?.status === "completed" || job?.status === "failed") {
+    if (
+      isMockJob ||
+      isPaused ||
+      job?.status === "completed" ||
+      job?.status === "failed"
+    ) {
       return;
     }
 
@@ -56,10 +59,9 @@ function AnalyzeComponent() {
     const pollJob = async () => {
       try {
         const nextJob = await getAnalyzeJobRequest(jobId);
-        if (!cancelled) {
-          setJob(nextJob);
-          setError(nextJob.status === "failed" ? nextJob.error ?? null : null);
-        }
+        if (cancelled) return;
+        setJob(nextJob);
+        setError(nextJob.status === "failed" ? nextJob.error ?? null : null);
       } catch (pollError) {
         if (!cancelled) {
           setError(
@@ -73,7 +75,6 @@ function AnalyzeComponent() {
 
     pollJob();
     const interval = window.setInterval(pollJob, 2_500);
-
     return () => {
       cancelled = true;
       window.clearInterval(interval);
@@ -81,8 +82,13 @@ function AnalyzeComponent() {
   }, [isMockJob, isPaused, job?.status, jobId]);
 
   useEffect(() => {
-    if (!doneShown) return;
+    if (isMockJob || isPaused) return;
+    const tick = window.setInterval(() => setNowMs(Date.now()), 250);
+    return () => window.clearInterval(tick);
+  }, [isMockJob, isPaused]);
 
+  useEffect(() => {
+    if (!doneShown) return;
     const wikiId = isMockJob ? jobId : job?.wikiId;
     if (!wikiId) return;
 
@@ -93,22 +99,37 @@ function AnalyzeComponent() {
     return () => clearTimeout(timeout);
   }, [doneShown, isMockJob, job?.wikiId, jobId, navigate]);
 
-  const state = deriveState(log, visibleCount, doneShown);
+  const repoUrl =
+    job?.repoUrl ??
+    `https://github.com/${richCliWiki.repo.owner}/${richCliWiki.repo.name}`;
+  const sha = job?.repo?.sha ?? richCliWiki.repo.sha;
+
+  const state = isMockJob
+    ? deriveState(richCliLog, mockVisibleCount, isMockComplete)
+    : deriveStateFromJob(
+        {
+          status: job?.status ?? "analyzing",
+          phase: job?.phase ?? "fetch",
+          pagesDone: job?.pagesDone ?? 0,
+          totalPages: job?.totalPages ?? 0,
+          featuresFound: job?.featuresFound ?? 0,
+          startedAtMs,
+        },
+        nowMs,
+      );
 
   const onSkip = () => {
     const wikiId = isMockJob ? jobId : job?.wikiId;
-
     if (wikiId) {
       navigate({ to: "/wiki/$wikiId", params: { wikiId } });
       return;
     }
-
-    setMockVisibleCount(log.length);
+    if (isMockJob) setMockVisibleCount(richCliLog.length);
   };
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
-      <GenerationHeader isDone={doneShown} />
+      <GenerationHeader isDone={Boolean(doneShown)} />
       <div className="flex flex-1 flex-col">
         <ChecklistLoader state={state} repoUrl={repoUrl} sha={sha} />
         {error ? (
@@ -120,24 +141,9 @@ function AnalyzeComponent() {
       <GenerationControls
         canSkip={isMockJob || Boolean(job?.wikiId)}
         isPaused={isPaused}
-        onPause={() => setIsPaused((isPausedNew) => !isPausedNew)}
+        onPause={() => setIsPaused((value) => !value)}
         onSkip={onSkip}
       />
     </div>
   );
 }
-
-const cappingVisibleCount = (visibleCount: number, log: typeof richCliLog) =>
-  Math.min(visibleCount, log.length);
-
-const getVisibleCountForJob = (
-  job: AnalyzeJobPublic,
-  logLength: number,
-) => {
-  if (job.status === "completed") return logLength;
-
-  return Math.min(
-    logLength,
-    Math.max(1, Math.ceil((job.progress / 100) * logLength)),
-  );
-};

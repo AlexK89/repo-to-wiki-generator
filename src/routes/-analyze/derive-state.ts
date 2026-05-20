@@ -95,6 +95,61 @@ export function phaseDetails(phase: Phase, state: DerivedState): PhaseMeta {
   };
 }
 
+type JobLike = {
+  status: "analyzing" | "writing" | "completed" | "failed";
+  phase: PhaseId;
+  pagesDone: number;
+  totalPages: number;
+  featuresFound: number;
+  startedAtMs: number;
+};
+
+export function deriveStateFromJob(job: JobLike, nowMs: number): DerivedState {
+  const isCompleted = job.status === "completed";
+  const elapsedSec = ((nowMs - job.startedAtMs) / 1000).toFixed(1);
+
+  const phaseRank: Record<PhaseId, number> = {
+    fetch: 0,
+    analyze: 1,
+    write: 2,
+    finalize: 3,
+  };
+  const currentRank = phaseRank[job.phase];
+
+  const phases: Phase[] = PHASE_DEFS.map((definition) => {
+    const rank = phaseRank[definition.id];
+    let status: PhaseStatus;
+    if (isCompleted) status = "done";
+    else if (rank < currentRank) status = "done";
+    else if (rank === currentRank) status = "active";
+    else status = "queued";
+    return { ...definition, status };
+  });
+
+  const writeFraction =
+    job.totalPages > 0 ? job.pagesDone / job.totalPages : 0;
+  const phaseFloor: Record<PhaseId, number> = {
+    fetch: 5,
+    analyze: 35,
+    write: 60 + Math.round(writeFraction * 30),
+    finalize: 95,
+  };
+  const progressPct = isCompleted ? 100 : phaseFloor[job.phase];
+
+  return {
+    log: [],
+    visible: [],
+    progressPct,
+    currentStep: undefined,
+    featuresFound: job.featuresFound,
+    pagesDone: job.pagesDone,
+    totalFeatures: job.totalPages,
+    elapsedSec,
+    phases,
+    doneShown: isCompleted,
+  };
+}
+
 export function lineRevealDelay(line: LogLine): number {
   switch (line.type) {
     case "step": return 380;

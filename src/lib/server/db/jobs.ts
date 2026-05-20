@@ -142,6 +142,38 @@ export const createAnalyzeJob = async ({
   return mapAnalyzeJobRow(row);
 };
 
+export const claimAnalyzeJob = async (
+  jobId: string,
+): Promise<AnalyzeJobRow | null> => {
+  await ensureDatabaseSchema();
+  const sql = getDatabaseClient();
+  const rows = (await sql.query(
+    `
+      update jobs
+      set updated_at = now()
+      where id = $1
+        and status in ('analyzing', 'writing')
+        and updated_at < now() - interval '3 seconds'
+      returning
+        id,
+        repo_url as "repoUrl",
+        status,
+        phase,
+        progress,
+        data,
+        created_at as "createdAt",
+        updated_at as "updatedAt",
+        wiki_id as "wikiId",
+        error,
+        openai_response_id as "openaiResponseId",
+        finished_at as "finishedAt"
+    `,
+    [jobId],
+  )) as AnalyzeJobDbRow[];
+
+  return rows[0] ? mapAnalyzeJobRow(rows[0]) : null;
+};
+
 export const getAnalyzeJob = async (
   jobId: string,
 ): Promise<AnalyzeJobRow | null> => {
@@ -187,7 +219,7 @@ export const updateAnalyzeJob = async (
         openai_response_id = $8,
         finished_at = $9,
         updated_at = now()
-      where id = $1
+      where id = $1 and updated_at = $10
       returning
         id,
         repo_url as "repoUrl",
@@ -212,11 +244,16 @@ export const updateAnalyzeJob = async (
       nextJob.error,
       nextJob.openaiResponseId,
       nextJob.finishedAt,
+      job.updatedAt,
     ],
   )) as AnalyzeJobDbRow[];
 
   const row = rows[0];
-  if (!row) throw new Error(`Job ${job.id} no longer exists`);
+  if (!row) {
+    const current = await getAnalyzeJob(job.id);
+    if (!current) throw new Error(`Job ${job.id} no longer exists`);
+    return current;
+  }
 
   return mapAnalyzeJobRow(row);
 };

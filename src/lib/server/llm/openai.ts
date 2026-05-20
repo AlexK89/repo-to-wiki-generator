@@ -158,7 +158,7 @@ export const createBackgroundJsonResponse = async ({
       max_output_tokens: maxOutputTokens,
       metadata,
       background: true,
-      reasoning: { effort: "minimal" },
+      reasoning: { effort: "low" },
       store: true,
       text: {
         format: { type: "json_object" },
