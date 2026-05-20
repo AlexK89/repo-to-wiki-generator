@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
-import { startAnalyzeJobRequest } from "@/lib/client/api";
 import { useDarkMode } from "@/lib/use-dark-mode";
 import { HowItWorks } from "./-landing/how-it-works";
 import { LandingFooter } from "./-landing/landing-footer";
@@ -16,25 +14,9 @@ export const Route = createFileRoute("/")({
 function HomeComponent() {
   const { isDark, toggle } = useDarkMode();
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (url: string) => {
-    setError(null);
-    setSubmitting(true);
-
-    try {
-      const job = await startAnalyzeJobRequest(url);
-      navigate({ to: "/analyze/$jobId", params: { jobId: job.id } });
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "Could not start the analysis job.",
-      );
-    } finally {
-      setSubmitting(false);
-    }
+  const handleSubmit = (url: string) => {
+    navigate({ to: "/analyze", search: { url } });
   };
 
   return (
@@ -48,11 +30,7 @@ function HomeComponent() {
 
       <main className="relative mx-auto max-w-220 px-8 pb-20 pt-15 text-center">
         <LandingHero />
-        <RepoInput
-          error={error}
-          isSubmitting={isSubmitting}
-          onSubmit={handleSubmit}
-        />
+        <RepoInput onSubmit={handleSubmit} />
         <HowItWorks />
       </main>
 

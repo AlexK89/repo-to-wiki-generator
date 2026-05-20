@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AnalyzeIndexRouteImport } from './routes/analyze.index'
 import { Route as WikiWikiIdRouteImport } from './routes/wiki.$wikiId'
 import { Route as AnalyzeJobIdRouteImport } from './routes/analyze.$jobId'
 import { Route as WikiWikiIdIndexRouteImport } from './routes/wiki.$wikiId.index'
@@ -24,6 +25,11 @@ const AboutRoute = AboutRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalyzeIndexRoute = AnalyzeIndexRouteImport.update({
+  id: '/analyze/',
+  path: '/analyze/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WikiWikiIdRoute = WikiWikiIdRouteImport.update({
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/analyze/$jobId': typeof AnalyzeJobIdRoute
   '/wiki/$wikiId': typeof WikiWikiIdRouteWithChildren
+  '/analyze/': typeof AnalyzeIndexRoute
   '/wiki/$wikiId/$slug': typeof WikiWikiIdSlugRoute
   '/wiki/$wikiId/': typeof WikiWikiIdIndexRoute
 }
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/analyze/$jobId': typeof AnalyzeJobIdRoute
+  '/analyze': typeof AnalyzeIndexRoute
   '/wiki/$wikiId/$slug': typeof WikiWikiIdSlugRoute
   '/wiki/$wikiId': typeof WikiWikiIdIndexRoute
 }
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/analyze/$jobId': typeof AnalyzeJobIdRoute
   '/wiki/$wikiId': typeof WikiWikiIdRouteWithChildren
+  '/analyze/': typeof AnalyzeIndexRoute
   '/wiki/$wikiId/$slug': typeof WikiWikiIdSlugRoute
   '/wiki/$wikiId/': typeof WikiWikiIdIndexRoute
 }
@@ -78,6 +87,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/analyze/$jobId'
     | '/wiki/$wikiId'
+    | '/analyze/'
     | '/wiki/$wikiId/$slug'
     | '/wiki/$wikiId/'
   fileRoutesByTo: FileRoutesByTo
@@ -85,6 +95,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/analyze/$jobId'
+    | '/analyze'
     | '/wiki/$wikiId/$slug'
     | '/wiki/$wikiId'
   id:
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/analyze/$jobId'
     | '/wiki/$wikiId'
+    | '/analyze/'
     | '/wiki/$wikiId/$slug'
     | '/wiki/$wikiId/'
   fileRoutesById: FileRoutesById
@@ -102,6 +114,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AnalyzeJobIdRoute: typeof AnalyzeJobIdRoute
   WikiWikiIdRoute: typeof WikiWikiIdRouteWithChildren
+  AnalyzeIndexRoute: typeof AnalyzeIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -118,6 +131,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analyze/': {
+      id: '/analyze/'
+      path: '/analyze'
+      fullPath: '/analyze/'
+      preLoaderRoute: typeof AnalyzeIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/wiki/$wikiId': {
@@ -170,6 +190,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AnalyzeJobIdRoute: AnalyzeJobIdRoute,
   WikiWikiIdRoute: WikiWikiIdRouteWithChildren,
+  AnalyzeIndexRoute: AnalyzeIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

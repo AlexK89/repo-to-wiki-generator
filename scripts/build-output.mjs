@@ -41,6 +41,8 @@ await cp(distDir, staticDir, { recursive: true });
 const entries = await collectTsEntries(sourceDir);
 console.log(`[build-output] Bundling ${entries.length} function(s)`);
 
+const dynamicRoutes = [];
+
 for (const entryPath of entries) {
   const relativeFromSource = relative(sourceDir, entryPath);
   const routePath = relativeFromSource.replace(/\.ts$/, "");
@@ -76,6 +78,18 @@ for (const entryPath of entries) {
     ),
   );
 
+  if (routePath.includes("[")) {
+    const routePattern = `^/api/${routePath
+      .split("/")
+      .map((segment) =>
+        segment.startsWith("[") && segment.endsWith("]")
+          ? "([^/]+)"
+          : segment,
+      )
+      .join("/")}/?$`;
+    dynamicRoutes.push({ src: routePattern, dest: `/api/${routePath}` });
+  }
+
   const handlerStats = await stat(handlerPath);
   console.log(
     `[build-output] ✓ api/${routePath} (${(handlerStats.size / 1024).toFixed(1)} kB, ${maxDuration}s)`,
@@ -88,6 +102,7 @@ await writeFile(
     {
       version: 3,
       routes: [
+        ...dynamicRoutes,
         { handle: "filesystem" },
         { src: "^/api(/.*)?$", status: 404 },
         { src: "/(.*)", dest: "/index.html" },
