@@ -12,7 +12,7 @@ export const Route = createFileRoute("/")({
 });
 
 function HomeComponent() {
-  const { dark, toggle } = useDarkMode();
+  const { isDark, toggle } = useDarkMode();
 
   // TODO: wire to /analyze/$jobId once the API exists. For now, log so we have a clear signal
   // that the form works end-to-end in the UI.
@@ -27,7 +27,7 @@ function HomeComponent() {
         className="dot-grid pointer-events-none absolute inset-0"
       />
 
-      <LandingHeader dark={dark} onToggleDark={toggle} />
+      <LandingHeader isDark={isDark} onToggleDark={toggle} />
 
       <main className="relative mx-auto max-w-220 px-8 pb-20 pt-15 text-center">
         <LandingHero />

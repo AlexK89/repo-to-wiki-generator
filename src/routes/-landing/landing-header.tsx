@@ -3,11 +3,11 @@ import { Moon, Sun } from "lucide-react";
 import { CubicLogo } from "@/components/cubic-logo";
 
 type Props = {
-  dark: boolean;
+  isDark: boolean;
   onToggleDark: () => void;
 };
 
-export function LandingHeader({ dark, onToggleDark }: Props) {
+export function LandingHeader({ isDark, onToggleDark }: Props) {
   return (
     <header className="relative mx-auto flex max-w-300 items-center justify-between px-8 py-5">
       <div className="flex items-center gap-2">
@@ -26,7 +26,7 @@ export function LandingHeader({ dark, onToggleDark }: Props) {
           aria-label="Toggle theme"
           className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-transparent text-fg-muted transition-colors hover:border-border-strong hover:text-fg"
         >
-          {dark ? <Sun size={14} /> : <Moon size={14} />}
+          {isDark ? <Sun size={14} /> : <Moon size={14} />}
         </button>
       </nav>
     </header>
