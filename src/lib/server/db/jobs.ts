@@ -153,7 +153,7 @@ export const claimAnalyzeJob = async (
       set updated_at = now()
       where id = $1
         and status in ('analyzing', 'writing')
-        and updated_at < now() - interval '3 seconds'
+        and updated_at < now() - interval '1500 milliseconds'
       returning
         id,
         repo_url as "repoUrl",

@@ -38,7 +38,8 @@ type PageResponseRequest = {
 };
 
 const MAX_PAGE_RETRIES = 1;
-const JOB_TIMEOUT_MS = 5 * 60 * 1000;
+const ANALYSIS_TIMEOUT_MS = 4 * 60 * 1000;
+const WRITING_TIMEOUT_MS = 6 * 60 * 1000;
 
 type AnalyzeJobData = {
   startedAt: number;
@@ -136,6 +137,7 @@ export const toPublicAnalyzeJob = (
     error: job.error ?? undefined,
     finishedAt: job.finishedAt ?? undefined,
     repo: getRepoFromDigest(data.digest),
+    openaiResponseId: job.openaiResponseId ?? undefined,
   };
 };
 
@@ -450,9 +452,18 @@ export const advanceAnalyzeJob = async (
   const job = await claimAnalyzeJob(jobId);
   if (!job) return existing;
 
-  const data = getJobData(job);
-  if (Date.now() - data.startedAt > JOB_TIMEOUT_MS) {
-    return failJob(job, new Error("Analysis job timed out after 5 minutes"));
+  const createdAtMs = new Date(job.createdAt).getTime();
+  const elapsedMs = Date.now() - createdAtMs;
+  const phaseTimeoutMs =
+    job.status === "writing" ? WRITING_TIMEOUT_MS : ANALYSIS_TIMEOUT_MS;
+
+  if (Number.isFinite(elapsedMs) && elapsedMs > phaseTimeoutMs) {
+    return failJob(
+      job,
+      new Error(
+        `Job stuck in '${job.status}' phase for ${Math.round(elapsedMs / 1000)}s — gpt-5-mini did not return in time`,
+      ),
+    );
   }
 
   try {

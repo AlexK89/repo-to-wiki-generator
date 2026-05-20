@@ -24,4 +24,5 @@ export type AnalyzeJobPublic = {
   error?: string;
   finishedAt?: string;
   repo?: Pick<WikiRepo, "owner" | "name" | "sha" | "defaultBranch">;
+  openaiResponseId?: string;
 };
