@@ -112,19 +112,34 @@ type GraphResult = {
 };
 
 function buildGraph(flowNodes: FlowNode[], flowEdges: FlowEdge[]): GraphResult {
+  const validNodeIds = new Set(flowNodes.map((node) => node.id));
+  const seenEdgeKeys = new Set<string>();
+  const sanitizedEdges = flowEdges.filter((edge) => {
+    if (edge.from === edge.to) return false;
+    if (!validNodeIds.has(edge.from) || !validNodeIds.has(edge.to)) return false;
+    const key = `${edge.from}->${edge.to}`;
+    if (seenEdgeKeys.has(key)) return false;
+    seenEdgeKeys.add(key);
+    return true;
+  });
+
   const incoming = new Map<string, string[]>();
   for (const node of flowNodes) incoming.set(node.id, []);
-  for (const edge of flowEdges) {
+  for (const edge of sanitizedEdges) {
     incoming.get(edge.to)?.push(edge.from);
   }
 
   const levels = new Map<string, number>();
+  const visiting = new Set<string>();
   const computeLevel = (id: string): number => {
     const cached = levels.get(id);
     if (cached !== undefined) return cached;
+    if (visiting.has(id)) return 0;
+    visiting.add(id);
     const parents = incoming.get(id) ?? [];
     const level =
       parents.length === 0 ? 0 : Math.max(...parents.map(computeLevel)) + 1;
+    visiting.delete(id);
     levels.set(id, level);
     return level;
   };
@@ -161,7 +176,7 @@ function buildGraph(flowNodes: FlowNode[], flowEdges: FlowEdge[]): GraphResult {
     });
   }
 
-  const edges: Edge[] = flowEdges.map((edge, index) => ({
+  const edges: Edge[] = sanitizedEdges.map((edge, index) => ({
     id: `${edge.from}->${edge.to}-${index}`,
     source: edge.from,
     target: edge.to,
