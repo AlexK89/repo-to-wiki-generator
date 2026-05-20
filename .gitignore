@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local tool artifacts
+.agents/
+.claude/
+skills-lock.json

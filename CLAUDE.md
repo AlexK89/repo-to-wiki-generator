@@ -6,6 +6,7 @@
 - 1 component per file
 - keep modular folder structure. View child components must live in the same folder, generic components must be in `src/components`
 - code should be highly readable, and extendable.
+- use tailwind classes with default values, use custom styles only when the default values are not matching what we need. BAD: `w-[24px]`, GOOD: `w-6`
 
 ## CRITICAL
 - UX is very important, the user flow must be simple, functional and easy to navigate.
