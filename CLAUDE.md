@@ -9,6 +9,7 @@
 - use tailwind classes with default values, use custom styles only when the default values are not matching what we need. BAD: `w-[24px]`, GOOD: `w-6`
 - props type name should be `Props` not `(ComponentName)Props`
 - for naming convention - always use full descriptive names, DO NOT USE names like `x`, `t`, etc
+- declare functions with `const`
 
 ## CRITICAL
 - UX is very important, the user flow must be simple, functional and easy to navigate.
