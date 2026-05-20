@@ -3,14 +3,6 @@
   "fluid": true,
   "buildCommand": "pnpm build",
   "outputDirectory": "dist",
-  "functions": {
-    "api/*.mjs": {
-      "maxDuration": 300
-    },
-    "api/**/*.mjs": {
-      "maxDuration": 300
-    }
-  },
   "rewrites": [
     {
       "source": "/((?!api/.*).*)",

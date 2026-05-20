@@ -36,4 +36,6 @@ const handler: ApiHandler = async (request, response) => {
   }
 };
 
+export const config = { maxDuration: 60 };
+
 export default handler;
