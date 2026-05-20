@@ -28,3 +28,7 @@ dist-ssr
 .claude/
 skills-lock.json
 .tanstack/
+.vercel/
+
+# Generated api bundles (built from api/**/*.ts)
+api/**/*.mjs

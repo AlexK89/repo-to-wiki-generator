@@ -1,0 +1,4 @@
+api/**/*.ts
+src/lib/server/**
+src/prompts/**
+scripts/**
