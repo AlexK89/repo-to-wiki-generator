@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { richCliLog, richCliWiki } from "@/data/rich-cli-wiki";
 import { ChecklistLoader } from "./-analyze/checklist-loader";
@@ -17,6 +17,8 @@ function AnalyzeComponent() {
   const log = richCliLog;
   const repoUrl = `https://github.com/${richCliWiki.repo.owner}/${richCliWiki.repo.name}`;
   const sha = richCliWiki.repo.sha;
+  const navigate = useNavigate();
+  const { jobId } = Route.useParams();
 
   const [visibleCount, setVisibleCount] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -33,10 +35,12 @@ function AnalyzeComponent() {
 
   useEffect(() => {
     if (!doneShown) return;
-    // TODO step 11: navigate to /wiki/$wikiId once the route exists.
-    const t = setTimeout(() => console.info("[cubic] generation done"), 900);
+    const t = setTimeout(
+      () => navigate({ to: "/wiki/$wikiId", params: { wikiId: jobId } }),
+      900,
+    );
     return () => clearTimeout(t);
-  }, [doneShown]);
+  }, [doneShown, jobId, navigate]);
 
   const state = deriveState(log, visibleCount, doneShown);
 

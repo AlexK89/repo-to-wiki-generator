@@ -119,6 +119,9 @@
   --color-cat-ext: var(--cat-ext);
   --color-cat-ext-soft: var(--cat-ext-soft);
 
+  --color-cat: var(--cat);
+  --color-cat-soft: var(--cat-soft);
+
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);

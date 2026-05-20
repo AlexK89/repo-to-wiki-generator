@@ -11,7 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as WikiWikiIdRouteImport } from './routes/wiki.$wikiId'
 import { Route as AnalyzeJobIdRouteImport } from './routes/analyze.$jobId'
+import { Route as WikiWikiIdIndexRouteImport } from './routes/wiki.$wikiId.index'
+import { Route as WikiWikiIdSlugRouteImport } from './routes/wiki.$wikiId.$slug'
 
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
@@ -23,40 +26,82 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WikiWikiIdRoute = WikiWikiIdRouteImport.update({
+  id: '/wiki/$wikiId',
+  path: '/wiki/$wikiId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AnalyzeJobIdRoute = AnalyzeJobIdRouteImport.update({
   id: '/analyze/$jobId',
   path: '/analyze/$jobId',
   getParentRoute: () => rootRouteImport,
+} as any)
+const WikiWikiIdIndexRoute = WikiWikiIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => WikiWikiIdRoute,
+} as any)
+const WikiWikiIdSlugRoute = WikiWikiIdSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => WikiWikiIdRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/analyze/$jobId': typeof AnalyzeJobIdRoute
+  '/wiki/$wikiId': typeof WikiWikiIdRouteWithChildren
+  '/wiki/$wikiId/$slug': typeof WikiWikiIdSlugRoute
+  '/wiki/$wikiId/': typeof WikiWikiIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/analyze/$jobId': typeof AnalyzeJobIdRoute
+  '/wiki/$wikiId/$slug': typeof WikiWikiIdSlugRoute
+  '/wiki/$wikiId': typeof WikiWikiIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/analyze/$jobId': typeof AnalyzeJobIdRoute
+  '/wiki/$wikiId': typeof WikiWikiIdRouteWithChildren
+  '/wiki/$wikiId/$slug': typeof WikiWikiIdSlugRoute
+  '/wiki/$wikiId/': typeof WikiWikiIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/analyze/$jobId'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/analyze/$jobId'
+    | '/wiki/$wikiId'
+    | '/wiki/$wikiId/$slug'
+    | '/wiki/$wikiId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/analyze/$jobId'
-  id: '__root__' | '/' | '/about' | '/analyze/$jobId'
+  to:
+    | '/'
+    | '/about'
+    | '/analyze/$jobId'
+    | '/wiki/$wikiId/$slug'
+    | '/wiki/$wikiId'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/analyze/$jobId'
+    | '/wiki/$wikiId'
+    | '/wiki/$wikiId/$slug'
+    | '/wiki/$wikiId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   AnalyzeJobIdRoute: typeof AnalyzeJobIdRoute
+  WikiWikiIdRoute: typeof WikiWikiIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -75,6 +120,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/wiki/$wikiId': {
+      id: '/wiki/$wikiId'
+      path: '/wiki/$wikiId'
+      fullPath: '/wiki/$wikiId'
+      preLoaderRoute: typeof WikiWikiIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/analyze/$jobId': {
       id: '/analyze/$jobId'
       path: '/analyze/$jobId'
@@ -82,13 +134,42 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AnalyzeJobIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/wiki/$wikiId/': {
+      id: '/wiki/$wikiId/'
+      path: '/'
+      fullPath: '/wiki/$wikiId/'
+      preLoaderRoute: typeof WikiWikiIdIndexRouteImport
+      parentRoute: typeof WikiWikiIdRoute
+    }
+    '/wiki/$wikiId/$slug': {
+      id: '/wiki/$wikiId/$slug'
+      path: '/$slug'
+      fullPath: '/wiki/$wikiId/$slug'
+      preLoaderRoute: typeof WikiWikiIdSlugRouteImport
+      parentRoute: typeof WikiWikiIdRoute
+    }
   }
 }
+
+interface WikiWikiIdRouteChildren {
+  WikiWikiIdSlugRoute: typeof WikiWikiIdSlugRoute
+  WikiWikiIdIndexRoute: typeof WikiWikiIdIndexRoute
+}
+
+const WikiWikiIdRouteChildren: WikiWikiIdRouteChildren = {
+  WikiWikiIdSlugRoute: WikiWikiIdSlugRoute,
+  WikiWikiIdIndexRoute: WikiWikiIdIndexRoute,
+}
+
+const WikiWikiIdRouteWithChildren = WikiWikiIdRoute._addFileChildren(
+  WikiWikiIdRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   AnalyzeJobIdRoute: AnalyzeJobIdRoute,
+  WikiWikiIdRoute: WikiWikiIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
